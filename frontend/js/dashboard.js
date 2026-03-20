@@ -84,10 +84,10 @@ function renderItemCard(item) {
   const label = progressLabel(item);
   const thoughts = item.thoughts || [];
   const thoughtCount = thoughts.length;
-  const thoughtLine =
+  const thoughtLabel =
     thoughtCount > 0
-      ? `<div class="card-thoughts">${thoughtCount} chapter thought${thoughtCount !== 1 ? "s" : ""}</div>`
-      : "";
+      ? `${thoughtCount} chapter thought${thoughtCount !== 1 ? "s" : ""}`
+      : "No chapter thoughts yet";
 
   const rating = item.review && item.review.rating;
   const ratingLine = rating
@@ -98,22 +98,27 @@ function renderItemCard(item) {
 
   return `
     <div class="item-card" data-id="${item.id}">
-      <div class="card-format-badge">${escapeHtml(item.format || "Physical")}</div>
-      <h3 class="card-title"><a href="/item/${item.id}">${escapeHtml(item.title)}</a></h3>
-      <p class="card-author">${escapeHtml(item.author || "")}</p>
-      <div class="card-progress">
-        <div class="card-progress-header">
-          <span>Progress</span>
-          <span>${escapeHtml(label)}</span>
+      <div class="card-main">
+        <div class="card-format-badge">${escapeHtml(item.format || "Physical")}</div>
+        <h3 class="card-title"><a href="/item/${item.id}">${escapeHtml(item.title)}</a></h3>
+        <p class="card-author">${escapeHtml(item.author || "")}</p>
+        <div class="card-progress">
+          <div class="card-progress-header">
+            <span>Progress</span>
+            <span>${escapeHtml(label)}</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
         </div>
-        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+        ${ratingLine}
+        <div class="card-actions">
+          <button type="button" class="btn-icon btn-edit" data-id="${item.id}" title="Edit">&#9998;</button>
+          <button type="button" class="btn-icon btn-delete" data-id="${item.id}" title="Delete">&times;</button>
+        </div>
       </div>
-      ${ratingLine}
-      ${thoughtLine}
-      <div class="card-actions">
-        <button type="button" class="btn-icon btn-edit" data-id="${item.id}" title="Edit">&#9998;</button>
-        <button type="button" class="btn-icon btn-delete" data-id="${item.id}" title="Delete">&times;</button>
-      </div>
+      <a class="card-thoughts-footer" href="/item/${item.id}" aria-label="View thoughts for ${escapeHtml(item.title)}">
+        <span class="card-thoughts-text">${escapeHtml(thoughtLabel)}</span>
+        <span class="card-thoughts-cta">View</span>
+      </a>
     </div>`;
 }
 
