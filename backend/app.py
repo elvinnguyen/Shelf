@@ -221,10 +221,24 @@ def update_item(item_id):
     if not valid:
         return jsonify({"error": err}), 400
     doc = build_item_doc(data)
-    doc["updated_at"] = datetime.utcnow().isoformat()
+    # Preserve non-editable fields like thoughts/review/created_at on updates.
+    editable_fields = [
+        "title",
+        "author",
+        "format",
+        "status",
+        "genre",
+        "progress_type",
+        "progress_current",
+        "progress_total",
+        "percent",
+        "notes",
+    ]
+    update_doc = {k: doc.get(k) for k in editable_fields}
+    update_doc["updated_at"] = datetime.utcnow().isoformat()
     result = items_col.update_one(
         {"_id": ObjectId(item_id)},
-        {"$set": doc},
+        {"$set": update_doc},
     )
     if result.matched_count == 0:
         return jsonify({"error": "Item not found"}), 404
