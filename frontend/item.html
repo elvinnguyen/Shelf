@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Item — Shelf</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="item-page">
+  <header class="header header-inner">
+    <a href="/" class="logo-link">Shelf</a>
+    <nav>
+      <a href="/dashboard" class="nav-link">My library</a>
+    </nav>
+  </header>
+  <main class="main item-main">
+    <a href="/dashboard" class="back-link">← Back to library</a>
+    <div id="item-loading" class="loading">Loading…</div>
+    <div id="item-content" hidden>
+      <section class="item-header card">
+        <div class="item-header-top">
+          <h1 id="item-title"></h1>
+          <div class="item-header-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-item">Edit</button>
+            <button type="button" class="btn btn-danger btn-sm" id="btn-delete-item">Delete</button>
+          </div>
+        </div>
+        <p class="item-meta">
+          <span id="item-author"></span>
+          <span class="meta-sep">·</span>
+          <span id="item-format"></span>
+          <span class="meta-sep">·</span>
+          <span id="item-status" class="status-badge"></span>
+          <span class="meta-sep" id="item-genre-sep">·</span>
+          <span id="item-genre"></span>
+        </p>
+        <div class="progress-block" id="progress-block">
+          <div class="progress-label" id="progress-label"></div>
+          <div class="progress-bar-wrap" id="progress-bar-wrap">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+        </div>
+        <p class="item-notes" id="item-notes"></p>
+      </section>
+
+      <section class="thoughts-section card">
+        <div class="thoughts-header">
+          <h2>Chapter Thoughts</h2>
+          <button type="button" class="btn btn-add btn-sm" id="btn-add-thought">+ Add Thought</button>
+        </div>
+        <div id="thought-form-wrap" hidden>
+          <form id="thought-form" class="thought-form-inline">
+            <input type="text" id="thought-chapter" class="input" placeholder="Chapter or marker (e.g. Ch 3)" />
+            <textarea id="thought-text" class="textarea" rows="3" placeholder="Your thought..." required></textarea>
+            <div class="error" id="thought-error"></div>
+            <div class="thought-form-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-thought">Cancel</button>
+              <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            </div>
+          </form>
+        </div>
+        <div id="thoughts-list"></div>
+      </section>
+
+      <section class="card" id="review-section" hidden>
+        <h2>Overall review</h2>
+        <form id="review-form" class="review-form">
+          <div class="form-group">
+            <label>Rating</label>
+            <input type="hidden" id="review-rating" value="" />
+            <div class="star-rating" id="star-rating">
+              <button type="button" class="star" data-value="1" aria-label="1 star">★</button>
+              <button type="button" class="star" data-value="2" aria-label="2 stars">★</button>
+              <button type="button" class="star" data-value="3" aria-label="3 stars">★</button>
+              <button type="button" class="star" data-value="4" aria-label="4 stars">★</button>
+              <button type="button" class="star" data-value="5" aria-label="5 stars">★</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="review-text">Review</label>
+            <textarea id="review-text" class="textarea" rows="4" placeholder="Your overall review..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Save review</button>
+        </form>
+        <div class="review-display" id="review-display" hidden></div>
+      </section>
+    </div>
+    <div class="message error" id="item-error" hidden></div>
+  </main>
+
+  <!-- Edit modal -->
+  <div class="modal" id="modal-edit" hidden style="display:none;">
+    <div class="modal-content">
+      <h2>Edit library item</h2>
+      <form id="edit-form">
+        <div class="form-group">
+          <label for="edit-title">Title <span class="required">*</span></label>
+          <input type="text" id="edit-title" class="input" required />
+          <span class="error" id="edit-error-title"></span>
+        </div>
+        <div class="form-group">
+          <label for="edit-author">Author</label>
+          <input type="text" id="edit-author" class="input" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-format">Format</label>
+            <select id="edit-format" class="select">
+              <option value="Physical">Physical</option>
+              <option value="Audiobook">Audiobook</option>
+              <option value="Series (Chapter Based)">Series (Chapter Based)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-status">Status</label>
+            <select id="edit-status" class="select">
+              <option value="TBR">TBR</option>
+              <option value="Reading">Reading</option>
+              <option value="Finished">Finished</option>
+              <option value="DNF">DNF</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="edit-genre">Genre</label>
+          <input type="text" id="edit-genre" class="input" placeholder="e.g. Fiction, Sci-Fi" />
+        </div>
+        <input type="hidden" id="edit-progress-type" value="Pages" />
+        <div class="form-row" id="edit-progress-pages-chapters">
+          <div class="form-group">
+            <label for="edit-progress-current" id="edit-label-progress-current">Current Page</label>
+            <input type="number" id="edit-progress-current" class="input" min="0" step="1" />
+          </div>
+          <div class="form-group">
+            <label for="edit-progress-total" id="edit-label-progress-total">Total Pages</label>
+            <input type="number" id="edit-progress-total" class="input" min="0" step="1" />
+          </div>
+        </div>
+        <p class="form-hint" id="edit-time-hint" hidden>Enter time in minutes (e.g., 90 = 1h 30m)</p>
+        <div class="form-group">
+          <label for="edit-notes">Notes</label>
+          <textarea id="edit-notes" class="textarea" rows="2"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-edit">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/item.js"></script>
+</body>
+</html>
