@@ -37,6 +37,21 @@ const FORMAT_PROGRESS = {
   "Series (Chapter Based)": { type: "Chapters", currentLabel: "Current Chapter", totalLabel: "Total Chapters", unit: "chapters" },
 };
 
+const SUGGESTED_GENRES = [
+  "Fantasy",
+  "Science Fiction",
+  "Mystery",
+  "Thriller",
+  "Romance",
+  "Historical Fiction",
+  "Horror",
+  "Nonfiction",
+  "Biography",
+  "Self-Help",
+  "Business",
+  "Young Adult",
+];
+
 function formatMinutes(mins) {
   const m = Math.round(Number(mins) || 0);
   if (m <= 0) return "0m";
@@ -77,6 +92,25 @@ function escapeHtml(s) {
   const div = document.createElement("div");
   div.textContent = s;
   return div.innerHTML;
+}
+
+function setupGenreInput({ inputId, datalistId, tagsId }) {
+  const input = document.getElementById(inputId);
+  const datalist = document.getElementById(datalistId);
+  const tags = document.getElementById(tagsId);
+  if (!input || !datalist || !tags) return;
+
+  datalist.innerHTML = SUGGESTED_GENRES.map((g) => `<option value="${escapeHtml(g)}"></option>`).join("");
+  tags.innerHTML = SUGGESTED_GENRES
+    .map((g) => `<button type="button" class="genre-tag" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`)
+    .join("");
+
+  tags.addEventListener("click", (e) => {
+    const btn = e.target.closest(".genre-tag");
+    if (!btn) return;
+    input.value = btn.dataset.genre || "";
+    input.focus();
+  });
 }
 
 function renderItemCard(item) {
@@ -285,6 +319,12 @@ function setupModal() {
   const modalContent = modal.querySelector(".modal-content");
   if (modalContent)
     modalContent.addEventListener("click", (e) => e.stopPropagation());
+
+  setupGenreInput({
+    inputId: "item-genre",
+    datalistId: "item-genre-suggestions",
+    tagsId: "item-genre-tags",
+  });
 
   document.getElementById("item-format").addEventListener("change", syncProgressWithFormat);
   form.addEventListener("submit", handleFormSubmit);

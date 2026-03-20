@@ -31,6 +31,40 @@ const FORMAT_PROGRESS = {
   "Series (Chapter Based)": { type: "Chapters", currentLabel: "Current Chapter", totalLabel: "Total Chapters", unit: "chapters" },
 };
 
+const SUGGESTED_GENRES = [
+  "Fantasy",
+  "Science Fiction",
+  "Mystery",
+  "Thriller",
+  "Romance",
+  "Historical Fiction",
+  "Horror",
+  "Nonfiction",
+  "Biography",
+  "Self-Help",
+  "Business",
+  "Young Adult",
+];
+
+function setupGenreInput({ inputId, datalistId, tagsId }) {
+  const input = document.getElementById(inputId);
+  const datalist = document.getElementById(datalistId);
+  const tags = document.getElementById(tagsId);
+  if (!input || !datalist || !tags) return;
+
+  datalist.innerHTML = SUGGESTED_GENRES.map((g) => `<option value="${escapeHtml(g)}"></option>`).join("");
+  tags.innerHTML = SUGGESTED_GENRES
+    .map((g) => `<button type="button" class="genre-tag" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`)
+    .join("");
+
+  tags.addEventListener("click", (e) => {
+    const btn = e.target.closest(".genre-tag");
+    if (!btn) return;
+    input.value = btn.dataset.genre || "";
+    input.focus();
+  });
+}
+
 function formatMinutes(mins) {
   const m = Math.round(Number(mins) || 0);
   if (m <= 0) return "0m";
@@ -288,6 +322,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
     document.getElementById("btn-cancel-edit").addEventListener("click", closeEditModal);
     document.getElementById("edit-format").addEventListener("change", syncEditProgressWithFormat);
+    setupGenreInput({
+      inputId: "edit-genre",
+      datalistId: "edit-genre-suggestions",
+      tagsId: "edit-genre-tags",
+    });
 
     // Delete review modal setup
     const deleteReviewModal = document.getElementById("modal-delete-review");

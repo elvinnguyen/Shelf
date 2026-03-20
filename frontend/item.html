@@ -123,7 +123,9 @@
         </div>
         <div class="form-group">
           <label for="edit-genre">Genre</label>
-          <input type="text" id="edit-genre" class="input" placeholder="e.g. Fiction, Sci-Fi" />
+          <input type="text" id="edit-genre" class="input" list="edit-genre-suggestions" placeholder="e.g. Fiction, Sci-Fi" />
+          <datalist id="edit-genre-suggestions"></datalist>
+          <div class="genre-tags" id="edit-genre-tags" aria-label="Suggested genres"></div>
         </div>
         <input type="hidden" id="edit-progress-type" value="Pages" />
         <div class="form-row" id="edit-progress-pages-chapters">
