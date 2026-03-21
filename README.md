@@ -31,7 +31,7 @@ You will use this string as `MONGODB_URI` in `.env` below.
 ### 1. Clone or download the repo
 
 ```bash
-cd Assignment2
+cd Shelf
 ```
 
 ### 2. Create a virtual environment
@@ -82,7 +82,7 @@ python backend/seed.py
 
 ### 7. Run the Flask server
 
-From the **project root** (`Assignment2`):
+From the **project root** (`Shelf`):
 
 ```bash
 cd backend && python app.py
@@ -105,10 +105,49 @@ In your browser go to:
 
 ---
 
+## Deploy to Render
+
+This project is set up to run as a single Render **Web Service** using `render.yaml`.
+
+### 1. Push your code to GitHub
+
+Render deploys from your Git repository, so push this repo to GitHub first.
+
+### 2. Create the service from Blueprint
+
+1. In Render, click **New +** -> **Blueprint**.
+2. Select your repository.
+3. Render will detect `render.yaml` and propose a service named `shelf-web`.
+4. Click **Apply**.
+
+### 3. Set required environment variables
+
+In Render service settings, set:
+
+- `MONGODB_URI` (required): your MongoDB Atlas connection string.
+- `DATABASE_NAME` (optional): defaults to `shelf`.
+- `MONGODB_TLS_INSECURE` (optional): keep `false` in production.
+
+### 4. Redeploy and verify
+
+After setting environment variables, redeploy once and open:
+
+- `/` for landing page
+- `/dashboard` for the app UI
+- `/api/items/summary` for a quick health check
+
+### Render runtime details
+
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `cd backend && gunicorn app:app --bind 0.0.0.0:$PORT`
+- **Python version:** `3.11.11` (from `render.yaml`)
+
+---
+
 ## Project structure
 
 ```
-Assignment2/
+Shelf/
 ├── backend/
 │   ├── app.py          # Flask app + API routes
 │   ├── config.py       # Reads MONGODB_URI from env
@@ -124,6 +163,7 @@ Assignment2/
 │       ├── dashboard.js
 │       └── item.js
 ├── .env.example
+├── render.yaml
 ├── requirements.txt
 └── README.md
 ```

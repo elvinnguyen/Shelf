@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: shelf-web
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/items/summary
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: MONGODB_URI
+        sync: false
+      - key: DATABASE_NAME
+        value: shelf
+      - key: MONGODB_TLS_INSECURE
+        value: "false"
