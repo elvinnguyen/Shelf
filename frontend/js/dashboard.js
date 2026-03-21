@@ -116,6 +116,10 @@ function setupGenreInput({ inputId, datalistId, tagsId }) {
 function renderItemCard(item) {
   const pct = progressPercent(item);
   const label = progressLabel(item);
+  const genre = (item.genre || "").trim();
+  const genreLine = genre
+    ? `<p class="card-author">Genre: ${escapeHtml(genre)}</p>`
+    : "";
   const thoughts = item.thoughts || [];
   const thoughtCount = thoughts.length;
   const thoughtLabel =
@@ -136,6 +140,7 @@ function renderItemCard(item) {
         <div class="card-format-badge">${escapeHtml(item.format || "Physical")}</div>
         <h3 class="card-title"><a href="/item/${item.id}">${escapeHtml(item.title)}</a></h3>
         <p class="card-author">${escapeHtml(item.author || "")}</p>
+        ${genreLine}
         <div class="card-progress">
           <div class="card-progress-header">
             <span>Progress</span>
