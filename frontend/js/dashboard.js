@@ -167,8 +167,9 @@ function matchesSearch(item, q) {
   if (!q) return true;
   const lower = q.toLowerCase();
   const title = (item.title || "").toLowerCase();
+  const author = (item.author || "").toLowerCase();
   const genre = (item.genre || "").toLowerCase();
-  return title.includes(lower) || genre.includes(lower);
+  return title.includes(lower) || author.includes(lower) || genre.includes(lower);
 }
 
 function getFilteredItems() {
