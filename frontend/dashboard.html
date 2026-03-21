@@ -16,9 +16,18 @@
   </header>
 
   <main class="dash-main">
-    <div class="search-bar">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="search-input" class="search-input" placeholder="Search by title or genre..." />
+    <div class="dash-controls">
+      <div class="search-bar">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" class="search-input" placeholder="Search by title, author, or genre..." />
+      </div>
+      <div class="format-filter" id="format-filter">
+        <button type="button" class="format-filter-toggle" id="format-filter-toggle" aria-haspopup="listbox" aria-expanded="false">
+          <span id="format-filter-label">All Formats</span>
+          <svg class="format-filter-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="format-filter-menu" id="format-filter-menu" role="listbox" hidden></div>
+      </div>
     </div>
 
     <nav class="status-tabs" id="status-tabs">

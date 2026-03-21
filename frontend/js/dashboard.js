@@ -6,6 +6,7 @@ const API = "/api";
 
 let _activeStatus = "";
 let _searchQuery = "";
+let _activeFormat = "";
 let _allItems = [];
 let _itemsCache = [];
 
@@ -36,6 +37,13 @@ const FORMAT_PROGRESS = {
   Audiobook: { type: "Time", currentLabel: "Current Time", totalLabel: "Total Time", unit: "hrs" },
   "Series (Chapter Based)": { type: "Chapters", currentLabel: "Current Chapter", totalLabel: "Total Chapters", unit: "chapters" },
 };
+
+const FORMAT_FILTER_OPTIONS = [
+  { value: "", label: "All Formats" },
+  { value: "Physical", label: "Physical Books" },
+  { value: "Audiobook", label: "Audiobooks" },
+  { value: "Series (Chapter Based)", label: "Series (Chapter Based)" },
+];
 
 const SUGGESTED_GENRES = [
   "Fantasy",
@@ -177,6 +185,9 @@ function getFilteredItems() {
   if (_searchQuery) {
     items = items.filter((item) => matchesSearch(item, _searchQuery));
   }
+  if (_activeFormat) {
+    items = items.filter((item) => item.format === _activeFormat);
+  }
   return items;
 }
 
@@ -257,6 +268,82 @@ function setupSearch() {
       renderItems();
     }, 200)
   );
+}
+
+// --- Format filter ---
+
+function renderFormatFilterMenu() {
+  const menu = document.getElementById("format-filter-menu");
+  const label = document.getElementById("format-filter-label");
+  if (!menu || !label) return;
+
+  const selected = FORMAT_FILTER_OPTIONS.find((opt) => opt.value === _activeFormat) || FORMAT_FILTER_OPTIONS[0];
+  label.textContent = selected.label;
+
+  menu.innerHTML = FORMAT_FILTER_OPTIONS.map((opt) => {
+    const isSelected = opt.value === _activeFormat;
+    return `
+      <button type="button" class="format-option ${isSelected ? "selected" : ""}" data-value="${escapeHtml(opt.value)}" role="option" aria-selected="${isSelected}">
+        <span>${escapeHtml(opt.label)}</span>
+        <span class="format-option-check">${isSelected ? "\u2713" : ""}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function closeFormatMenu() {
+  const root = document.getElementById("format-filter");
+  const toggle = document.getElementById("format-filter-toggle");
+  const menu = document.getElementById("format-filter-menu");
+  if (!root || !toggle || !menu) return;
+  root.classList.remove("open");
+  toggle.setAttribute("aria-expanded", "false");
+  menu.hidden = true;
+}
+
+function openFormatMenu() {
+  const root = document.getElementById("format-filter");
+  const toggle = document.getElementById("format-filter-toggle");
+  const menu = document.getElementById("format-filter-menu");
+  if (!root || !toggle || !menu) return;
+  root.classList.add("open");
+  toggle.setAttribute("aria-expanded", "true");
+  menu.hidden = false;
+}
+
+function setupFormatFilter() {
+  const root = document.getElementById("format-filter");
+  const toggle = document.getElementById("format-filter-toggle");
+  const menu = document.getElementById("format-filter-menu");
+  if (!root || !toggle || !menu) return;
+
+  renderFormatFilterMenu();
+
+  toggle.addEventListener("click", () => {
+    if (menu.hidden) openFormatMenu();
+    else closeFormatMenu();
+  });
+
+  menu.addEventListener("click", (e) => {
+    const option = e.target.closest(".format-option");
+    if (!option) return;
+    _activeFormat = option.dataset.value || "";
+    renderFormatFilterMenu();
+    closeFormatMenu();
+    renderItems();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!root.contains(e.target)) {
+      closeFormatMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeFormatMenu();
+    }
+  });
 }
 
 // --- Modal (add / edit) ---
@@ -429,6 +516,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setupModal();
   setupTabs();
   setupSearch();
+  setupFormatFilter();
   setupGridActions();
   loadAllItems();
 });
