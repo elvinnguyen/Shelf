@@ -9,6 +9,7 @@ load_dotenv(os.path.join(_root, ".env"))
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "shelf")
 ITEMS_COLLECTION = "items"
+GOOGLE_BOOKS_API_KEY = os.getenv("GOOGLE_BOOKS_API_KEY", "").strip()
 # Set to 1 or true to skip SSL cert verification (macOS dev workaround for CERTIFICATE_VERIFY_FAILED)
 MONGODB_TLS_INSECURE = os.getenv("MONGODB_TLS_INSECURE", "").lower() in ("1", "true", "yes")
 

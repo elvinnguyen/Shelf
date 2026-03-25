@@ -2,6 +2,7 @@
  * Shelf — Item detail: progress, thoughts, review.
  */
 const API = "/api";
+const _coverCache = new Map();
 
 function getItemId() {
   const path = window.location.pathname;
@@ -23,6 +24,49 @@ function escapeHtml(s) {
   const div = document.createElement("div");
   div.textContent = s;
   return div.innerHTML;
+}
+
+function normalizeIsbn(isbn) {
+  return (isbn || "").replace(/[^0-9Xx]/g, "").trim();
+}
+
+async function fetchCoverUrlByIsbn(isbn) {
+  const normalized = normalizeIsbn(isbn);
+  if (!normalized) return null;
+  if (_coverCache.has(normalized)) return _coverCache.get(normalized);
+
+  const promise = api("GET", "/books/cover?isbn=" + encodeURIComponent(normalized))
+    .then((data) => data.cover_url || null)
+    .catch(() => null);
+  _coverCache.set(normalized, promise);
+  const resolved = await promise;
+  _coverCache.set(normalized, resolved);
+  return resolved;
+}
+
+async function renderCover(item) {
+  const wrap = document.getElementById("item-cover");
+  const img = document.getElementById("item-cover-image");
+  const fallback = document.getElementById("item-cover-fallback");
+  if (!wrap || !img || !fallback) return;
+
+  const isbn = normalizeIsbn(item.isbn);
+  if (!isbn) {
+    img.hidden = true;
+    fallback.hidden = false;
+    return;
+  }
+
+  const coverUrl = await fetchCoverUrlByIsbn(isbn);
+  if (coverUrl) {
+    img.src = coverUrl;
+    img.hidden = false;
+    fallback.hidden = true;
+    return;
+  }
+
+  img.hidden = true;
+  fallback.hidden = false;
 }
 
 const FORMAT_PROGRESS = {
@@ -132,8 +176,12 @@ function renderItem(item) {
   statusEl.className = "status-badge " + statusClass(item.status);
   document.getElementById("item-genre").textContent = item.genre || "";
   document.getElementById("item-genre-sep").style.display = item.genre ? "inline" : "none";
+  const isbn = normalizeIsbn(item.isbn);
+  document.getElementById("item-isbn").textContent = isbn ? `ISBN ${isbn}` : "";
+  document.getElementById("item-isbn-sep").style.display = isbn ? "inline" : "none";
   document.getElementById("item-notes").textContent = item.notes || "";
   document.getElementById("item-notes").style.display = item.notes ? "block" : "none";
+  renderCover(item);
 
   const started = item.started_at;
   const finished = item.finished_at;
@@ -273,6 +321,7 @@ function openEditModal(item) {
   const modal = document.getElementById("modal-edit");
   document.getElementById("edit-title").value = item.title || "";
   document.getElementById("edit-author").value = item.author || "";
+  document.getElementById("edit-isbn").value = item.isbn || "";
   document.getElementById("edit-format").value = item.format || "Physical";
   document.getElementById("edit-status").value = item.status || "TBR";
   document.getElementById("edit-genre").value = item.genre || "";
@@ -303,6 +352,7 @@ function getEditPayload() {
   return {
     title: document.getElementById("edit-title").value.trim(),
     author: document.getElementById("edit-author").value.trim() || undefined,
+    isbn: normalizeIsbn(document.getElementById("edit-isbn").value) || undefined,
     format: fmt,
     status: document.getElementById("edit-status").value,
     genre: document.getElementById("edit-genre").value.trim() || undefined,

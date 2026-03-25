@@ -71,6 +71,7 @@ Edit `.env` and set:
 
 - `MONGODB_URI` — your MongoDB Atlas connection string from the steps above.
 - Optionally `DATABASE_NAME=shelf` (default is `shelf`).
+- `GOOGLE_BOOKS_API_KEY` — required for Google Books cover lookup by ISBN.
 
 ### 6. (Optional) Seed sample data for demo
 
@@ -126,6 +127,7 @@ In Render service settings, set:
 
 - `MONGODB_URI` (required): your MongoDB Atlas connection string.
 - `DATABASE_NAME` (optional): defaults to `shelf`.
+- `GOOGLE_BOOKS_API_KEY` (required for cover lookups): your Google Books API key.
 - `MONGODB_TLS_INSECURE` (optional): keep `false` in production.
 
 ### 4. Redeploy and verify
@@ -183,6 +185,7 @@ Each document shape:
 | `_id`               | ObjectId | Auto-generated |
 | `title`             | string   | Required |
 | `author`            | string   | Optional |
+| `isbn`              | string   | Optional (stored as normalized 10/13 chars) |
 | `format`            | string   | `Physical` \| `Audiobook` \| `Graphic Novel/Comic` |
 | `status`            | string   | `Reading` \| `TBR` \| `Finished` \| `DNF` |
 | `genre`             | string   | Optional |
@@ -206,6 +209,7 @@ Each document shape:
 | GET    | `/api/items` | List items (query: `status`, `format`, `genre`, `q`) |
 | GET    | `/api/items/summary` | Counts: total and by status |
 | GET    | `/api/items/<id>` | Item detail |
+| GET    | `/api/books/cover?isbn=<isbn>` | Lookup cover image URL from Google Books |
 | PUT    | `/api/items/<id>` | Update item (optional) |
 | DELETE | `/api/items/<id>` | Delete item (optional) |
 | POST   | `/api/items/<id>/thoughts` | Add chapter thought |

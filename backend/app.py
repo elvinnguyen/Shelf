@@ -3,13 +3,17 @@ Shelf — Your personal library. Flask API server.
 """
 import os
 import re
+import json
+import urllib.parse
+import urllib.request
+import urllib.error
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
 from config import MONGODB_URI, DATABASE_NAME, ITEMS_COLLECTION, MONGODB_TLS_INSECURE
-from config import FORMATS, STATUSES, PROGRESS_TYPES
+from config import FORMATS, STATUSES, PROGRESS_TYPES, GOOGLE_BOOKS_API_KEY
 
 _static = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = Flask(__name__, static_folder=_static, static_url_path="")
@@ -85,6 +89,12 @@ def validate_item(data, for_create=True):
         except ValueError:
             return False, "started_at must be an ISO datetime or YYYY-MM-DD date"
 
+    isbn = data.get("isbn")
+    if isbn is not None and str(isbn).strip() != "":
+        normalized_isbn = re.sub(r"[^0-9Xx]", "", str(isbn))
+        if len(normalized_isbn) not in (10, 13):
+            return False, "isbn must be a valid 10 or 13 character ISBN"
+
     return True, None
 
 
@@ -93,6 +103,7 @@ def build_item_doc(data):
     doc = {
         "title": str(data.get("title", "")).strip(),
         "author": str(data.get("author", "")).strip() or None,
+        "isbn": re.sub(r"[^0-9Xx]", "", str(data.get("isbn", "")).strip()) or None,
         "format": data.get("format") or "Physical",
         "status": data.get("status") or "TBR",
         "genre": str(data.get("genre", "")).strip() or None,
@@ -260,6 +271,7 @@ def update_item(item_id):
     editable_fields = [
         "title",
         "author",
+        "isbn",
         "format",
         "status",
         "genre",
@@ -290,6 +302,49 @@ def update_item(item_id):
     )
     updated = items_col.find_one({"_id": ObjectId(item_id)})
     return jsonify(to_json_serializable(updated))
+
+
+@app.route("/api/books/cover", methods=["GET"])
+def get_book_cover():
+    isbn = re.sub(r"[^0-9Xx]", "", request.args.get("isbn", "").strip())
+    if not isbn:
+        return jsonify({"error": "isbn query parameter is required"}), 400
+    if len(isbn) not in (10, 13):
+        return jsonify({"error": "isbn must be a valid 10 or 13 character ISBN"}), 400
+    if not GOOGLE_BOOKS_API_KEY:
+        return jsonify({"error": "GOOGLE_BOOKS_API_KEY is not configured"}), 500
+
+    query = urllib.parse.urlencode(
+        {
+            "q": f"isbn:{isbn}",
+            "key": GOOGLE_BOOKS_API_KEY,
+            "maxResults": 1,
+        }
+    )
+    url = f"https://www.googleapis.com/books/v1/volumes?{query}"
+
+    try:
+        with urllib.request.urlopen(url, timeout=8) as response:
+            body = response.read().decode("utf-8")
+            payload = json.loads(body) if body else {}
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
+        return jsonify({"error": "Failed to fetch cover from Google Books"}), 502
+    except json.JSONDecodeError:
+        return jsonify({"error": "Unexpected Google Books response"}), 502
+
+    items = payload.get("items") or []
+    volume = items[0] if items else {}
+    volume_info = (volume or {}).get("volumeInfo") or {}
+    image_links = volume_info.get("imageLinks") or {}
+    cover_url = (
+        image_links.get("thumbnail")
+        or image_links.get("smallThumbnail")
+        or image_links.get("small")
+        or image_links.get("medium")
+        or image_links.get("large")
+    )
+
+    return jsonify({"isbn": isbn, "cover_url": cover_url})
 
 
 @app.route("/api/items/<item_id>", methods=["DELETE"])
