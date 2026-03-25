@@ -9,7 +9,6 @@ let _searchQuery = "";
 let _activeFormat = "";
 let _allItems = [];
 let _itemsCache = [];
-const _coverCache = new Map();
 
 function showMessage(text, type) {
   const el = document.getElementById("message");
@@ -107,33 +106,6 @@ function normalizeIsbn(isbn) {
   return (isbn || "").replace(/[^0-9Xx]/g, "").trim();
 }
 
-async function fetchCoverUrlByIsbn(isbn) {
-  const normalized = normalizeIsbn(isbn);
-  if (!normalized) return null;
-  if (_coverCache.has(normalized)) return _coverCache.get(normalized);
-
-  const promise = api("GET", "/books/cover?isbn=" + encodeURIComponent(normalized))
-    .then((data) => data.cover_url || null)
-    .catch(() => null);
-  _coverCache.set(normalized, promise);
-  const resolved = await promise;
-  _coverCache.set(normalized, resolved);
-  return resolved;
-}
-
-function renderCoverContainer(item) {
-  const isbn = normalizeIsbn(item.isbn);
-  if (!isbn) {
-    return '<div class="card-cover card-cover-empty"><span>No cover</span></div>';
-  }
-  return `
-    <div class="card-cover" data-cover-isbn="${escapeHtml(isbn)}">
-      <img class="card-cover-image" alt="Cover for ${escapeHtml(item.title || "book")}" hidden />
-      <div class="card-cover-fallback">No cover</div>
-    </div>
-  `;
-}
-
 function toDateInputValue(value) {
   if (!value) return "";
   try {
@@ -204,7 +176,6 @@ function renderItemCard(item) {
 
   return `
     <div class="item-card" data-id="${item.id}">
-      ${renderCoverContainer(item)}
       <div class="card-main">
         <div class="card-format-badge">${escapeHtml(item.format || "Physical")}</div>
         <h3 class="card-title"><a href="/item/${item.id}">${escapeHtml(item.title)}</a></h3>
@@ -230,23 +201,6 @@ function renderItemCard(item) {
         <span class="card-thoughts-cta">View</span>
       </a>
     </div>`;
-}
-
-async function hydrateVisibleCovers() {
-  const covers = document.querySelectorAll(".card-cover[data-cover-isbn]");
-  for (const wrap of covers) {
-    if (wrap.dataset.coverLoaded === "1") continue;
-    const isbn = wrap.dataset.coverIsbn || "";
-    const img = wrap.querySelector(".card-cover-image");
-    const fallback = wrap.querySelector(".card-cover-fallback");
-    const coverUrl = await fetchCoverUrlByIsbn(isbn);
-    if (coverUrl && img) {
-      img.src = coverUrl;
-      img.hidden = false;
-      if (fallback) fallback.hidden = true;
-    }
-    wrap.dataset.coverLoaded = "1";
-  }
 }
 
 // --- Filtering (all client-side) ---
@@ -300,7 +254,6 @@ function renderItems() {
     visible.length === 0
       ? '<p class="empty-state">No books to show. Add one with the button above.</p>'
       : visible.map(renderItemCard).join("");
-  hydrateVisibleCovers();
 }
 
 async function loadAllItems() {

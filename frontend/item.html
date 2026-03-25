@@ -19,41 +19,43 @@
     <div id="item-content" hidden>
       <section class="item-header card">
         <div class="item-header-top">
-          <div>
-            <h1 id="item-title"></h1>
-            <div class="item-cover" id="item-cover">
-              <img id="item-cover-image" alt="Book cover" hidden />
-              <div class="item-cover-fallback" id="item-cover-fallback">No cover available</div>
+          <div class="item-cover" id="item-cover">
+            <img id="item-cover-image" alt="Book cover" hidden />
+            <div class="item-cover-fallback" id="item-cover-fallback">No cover available</div>
+          </div>
+          <div class="item-header-main">
+            <div class="item-title-row">
+              <h1 id="item-title"></h1>
+              <div class="item-header-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-item">Edit</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btn-delete-item">Delete</button>
+              </div>
             </div>
-          </div>
-          <div class="item-header-actions">
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-item">Edit</button>
-            <button type="button" class="btn btn-danger btn-sm" id="btn-delete-item">Delete</button>
+            <p class="item-meta">
+              <span id="item-author"></span>
+              <span class="meta-sep">·</span>
+              <span id="item-format"></span>
+              <span class="meta-sep">·</span>
+              <span id="item-status" class="status-badge"></span>
+              <span class="meta-sep" id="item-genre-sep">·</span>
+              <span id="item-genre"></span>
+              <span class="meta-sep" id="item-isbn-sep">·</span>
+              <span id="item-isbn"></span>
+            </p>
+            <div class="progress-block" id="progress-block">
+              <div class="progress-label" id="progress-label"></div>
+              <div class="progress-bar-wrap" id="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progress-bar-fill"></div>
+              </div>
+            </div>
+            <div class="item-dates" id="item-dates" hidden>
+              <div class="item-date-line" id="item-started-line" hidden>Started: <span id="item-started-at"></span></div>
+              <div class="item-date-line" id="item-finished-line" hidden>Finished: <span id="item-finished-at"></span></div>
+              <div class="item-date-line" id="item-dnf-line" hidden>DNF: <span id="item-dnf-at"></span></div>
+            </div>
+            <p class="item-notes" id="item-notes"></p>
           </div>
         </div>
-        <p class="item-meta">
-          <span id="item-author"></span>
-          <span class="meta-sep">·</span>
-          <span id="item-format"></span>
-          <span class="meta-sep">·</span>
-          <span id="item-status" class="status-badge"></span>
-          <span class="meta-sep" id="item-genre-sep">·</span>
-          <span id="item-genre"></span>
-          <span class="meta-sep" id="item-isbn-sep">·</span>
-          <span id="item-isbn"></span>
-        </p>
-        <div class="progress-block" id="progress-block">
-          <div class="progress-label" id="progress-label"></div>
-          <div class="progress-bar-wrap" id="progress-bar-wrap">
-            <div class="progress-bar-fill" id="progress-bar-fill"></div>
-          </div>
-        </div>
-        <div class="item-dates" id="item-dates" hidden>
-          <div class="item-date-line" id="item-started-line" hidden>Started: <span id="item-started-at"></span></div>
-          <div class="item-date-line" id="item-finished-line" hidden>Finished: <span id="item-finished-at"></span></div>
-          <div class="item-date-line" id="item-dnf-line" hidden>DNF: <span id="item-dnf-at"></span></div>
-        </div>
-        <p class="item-notes" id="item-notes"></p>
       </section>
 
       <section class="thoughts-section card">
