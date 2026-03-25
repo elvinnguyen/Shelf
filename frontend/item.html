@@ -40,6 +40,11 @@
             <div class="progress-bar-fill" id="progress-bar-fill"></div>
           </div>
         </div>
+        <div class="item-dates" id="item-dates" hidden>
+          <div class="item-date-line" id="item-started-line" hidden>Started: <span id="item-started-at"></span></div>
+          <div class="item-date-line" id="item-finished-line" hidden>Finished: <span id="item-finished-at"></span></div>
+          <div class="item-date-line" id="item-dnf-line" hidden>DNF: <span id="item-dnf-at"></span></div>
+        </div>
         <p class="item-notes" id="item-notes"></p>
       </section>
 
@@ -126,6 +131,10 @@
           <input type="text" id="edit-genre" class="input" list="edit-genre-suggestions" placeholder="e.g. Fiction, Sci-Fi" />
           <datalist id="edit-genre-suggestions"></datalist>
           <div class="genre-tags" id="edit-genre-tags" aria-label="Suggested genres"></div>
+        </div>
+        <div class="form-group">
+          <label for="edit-start-date">Start Date (optional)</label>
+          <input type="date" id="edit-start-date" class="input" />
         </div>
         <input type="hidden" id="edit-progress-type" value="Pages" />
         <div class="form-row" id="edit-progress-pages-chapters">

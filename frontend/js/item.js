@@ -114,6 +114,15 @@ function formatDate(iso) {
   }
 }
 
+function toDateInputValue(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toISOString().slice(0, 10);
+  } catch {
+    return "";
+  }
+}
+
 function renderItem(item) {
   document.getElementById("item-title").textContent = item.title;
   document.getElementById("item-author").textContent = item.author || "";
@@ -125,6 +134,25 @@ function renderItem(item) {
   document.getElementById("item-genre-sep").style.display = item.genre ? "inline" : "none";
   document.getElementById("item-notes").textContent = item.notes || "";
   document.getElementById("item-notes").style.display = item.notes ? "block" : "none";
+
+  const started = item.started_at;
+  const finished = item.finished_at;
+  const dnf = item.dnf_at;
+  const datesBlock = document.getElementById("item-dates");
+  const startedLine = document.getElementById("item-started-line");
+  const finishedLine = document.getElementById("item-finished-line");
+  const dnfLine = document.getElementById("item-dnf-line");
+  const startedAt = document.getElementById("item-started-at");
+  const finishedAt = document.getElementById("item-finished-at");
+  const dnfAt = document.getElementById("item-dnf-at");
+
+  startedLine.hidden = !started;
+  finishedLine.hidden = !finished;
+  dnfLine.hidden = !dnf;
+  if (started) startedAt.textContent = formatDate(started);
+  if (finished) finishedAt.textContent = formatDate(finished);
+  if (dnf) dnfAt.textContent = formatDate(dnf);
+  datesBlock.hidden = !(started || finished || dnf);
 
   const pct = progressPercent(item);
   document.getElementById("progress-label").textContent = progressLabel(item);
@@ -248,6 +276,7 @@ function openEditModal(item) {
   document.getElementById("edit-format").value = item.format || "Physical";
   document.getElementById("edit-status").value = item.status || "TBR";
   document.getElementById("edit-genre").value = item.genre || "";
+  document.getElementById("edit-start-date").value = toDateInputValue(item.started_at);
   syncEditProgressWithFormat();
   document.getElementById("edit-progress-current").value =
     item.progress_current != null ? item.progress_current : "";
@@ -270,12 +299,14 @@ function getEditPayload() {
   const info = FORMAT_PROGRESS[fmt] || FORMAT_PROGRESS.Physical;
   const cur = document.getElementById("edit-progress-current").value;
   const tot = document.getElementById("edit-progress-total").value;
+  const started_at = document.getElementById("edit-start-date").value;
   return {
     title: document.getElementById("edit-title").value.trim(),
     author: document.getElementById("edit-author").value.trim() || undefined,
     format: fmt,
     status: document.getElementById("edit-status").value,
     genre: document.getElementById("edit-genre").value.trim() || undefined,
+    started_at: started_at || undefined,
     progress_type: info.type,
     progress_current: cur === "" ? undefined : parseFloat(cur),
     progress_total: tot === "" ? undefined : parseFloat(tot),

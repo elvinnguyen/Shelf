@@ -102,6 +102,28 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+function toDateInputValue(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toISOString().slice(0, 10);
+  } catch {
+    return "";
+  }
+}
+
+function formatCardDate(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString(undefined, {
+      month: "numeric",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
 function setupGenreInput({ inputId, datalistId, tagsId }) {
   const input = document.getElementById(inputId);
   const datalist = document.getElementById(datalistId);
@@ -128,6 +150,12 @@ function renderItemCard(item) {
   const genreLine = genre
     ? `<p class="card-author">Genre: ${escapeHtml(genre)}</p>`
     : "";
+  const startedLine = item.started_at
+    ? `<p class="card-author">Started: ${escapeHtml(formatCardDate(item.started_at))}</p>`
+    : "";
+  const finishedLine = item.finished_at
+    ? `<p class="card-author">Finished: ${escapeHtml(formatCardDate(item.finished_at))}</p>`
+    : "";
   const thoughts = item.thoughts || [];
   const thoughtCount = thoughts.length;
   const thoughtLabel =
@@ -149,6 +177,8 @@ function renderItemCard(item) {
         <h3 class="card-title"><a href="/item/${item.id}">${escapeHtml(item.title)}</a></h3>
         <p class="card-author">${escapeHtml(item.author || "")}</p>
         ${genreLine}
+        ${startedLine}
+        ${finishedLine}
         <div class="card-progress">
           <div class="card-progress-header">
             <span>Progress</span>
@@ -388,12 +418,14 @@ function getFormPayload() {
   const info = FORMAT_PROGRESS[fmt] || FORMAT_PROGRESS.Physical;
   const cur = document.getElementById("item-progress-current").value;
   const tot = document.getElementById("item-progress-total").value;
+  const started_at = document.getElementById("item-start-date").value;
   return {
     title: document.getElementById("item-title").value.trim(),
     author: document.getElementById("item-author").value.trim() || undefined,
     format: fmt,
     status: document.getElementById("item-status").value,
     genre: document.getElementById("item-genre").value.trim() || undefined,
+    started_at: started_at || undefined,
     progress_type: info.type,
     progress_current: cur === "" ? undefined : parseFloat(cur),
     progress_total: tot === "" ? undefined : parseFloat(tot),
@@ -470,6 +502,7 @@ function openEditModal(itemId) {
   document.getElementById("item-format").value = item.format || "Physical";
   document.getElementById("item-status").value = item.status || "TBR";
   document.getElementById("item-genre").value = item.genre || "";
+  document.getElementById("item-start-date").value = toDateInputValue(item.started_at);
   syncProgressWithFormat();
   document.getElementById("item-progress-current").value =
     item.progress_current != null ? item.progress_current : "";

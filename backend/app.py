@@ -78,6 +78,13 @@ def validate_item(data, for_create=True):
             except (TypeError, ValueError):
                 return False, "progress_total must be a number"
 
+    started_at = data.get("started_at")
+    if started_at is not None and str(started_at).strip() != "":
+        try:
+            normalize_optional_datetime(started_at)
+        except ValueError:
+            return False, "started_at must be an ISO datetime or YYYY-MM-DD date"
+
     return True, None
 
 
@@ -94,6 +101,9 @@ def build_item_doc(data):
         "progress_total": None,
         "percent": None,
         "notes": str(data.get("notes", "")).strip() or None,
+        "started_at": normalize_optional_datetime(data.get("started_at")),
+        "finished_at": None,
+        "dnf_at": None,
         "thoughts": [],
         "review": None,
         "created_at": datetime.utcnow().isoformat(),
@@ -118,6 +128,21 @@ def _num(v, default=None):
         return float(v) if isinstance(v, (int, float)) else float(v)
     except (TypeError, ValueError):
         return default
+
+
+def normalize_optional_datetime(value):
+    """Accept ISO datetime or YYYY-MM-DD, return ISO datetime string or None."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return datetime.strptime(s, "%Y-%m-%d").isoformat()
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00")).isoformat()
+    except ValueError as exc:
+        raise ValueError("invalid datetime format") from exc
 
 
 # ——— Error handler (so API always returns JSON) ———
@@ -153,6 +178,13 @@ def create_item():
     if not valid:
         return jsonify({"error": err}), 400
     doc = build_item_doc(data)
+    now = datetime.utcnow().isoformat()
+    if doc.get("status") == "Reading" and not doc.get("started_at"):
+        doc["started_at"] = now
+    if doc.get("status") == "Finished" and not doc.get("finished_at"):
+        doc["finished_at"] = now
+    if doc.get("status") == "DNF" and not doc.get("dnf_at"):
+        doc["dnf_at"] = now
     try:
         result = items_col.insert_one(doc)
     except Exception as e:
@@ -217,6 +249,9 @@ def update_item(item_id):
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
     data = request.get_json()
+    existing = items_col.find_one({"_id": ObjectId(item_id)})
+    if not existing:
+        return jsonify({"error": "Item not found"}), 404
     valid, err = validate_item(data)
     if not valid:
         return jsonify({"error": err}), 400
@@ -235,13 +270,24 @@ def update_item(item_id):
         "notes",
     ]
     update_doc = {k: doc.get(k) for k in editable_fields}
+    update_doc["started_at"] = existing.get("started_at")
+    manual_started_at = normalize_optional_datetime(data.get("started_at"))
+    if not update_doc["started_at"] and manual_started_at:
+        update_doc["started_at"] = manual_started_at
+    update_doc["finished_at"] = existing.get("finished_at")
+    update_doc["dnf_at"] = existing.get("dnf_at")
+    now = datetime.utcnow().isoformat()
+    if update_doc.get("status") == "Reading" and not update_doc.get("started_at"):
+        update_doc["started_at"] = now
+    if update_doc.get("status") == "Finished" and not update_doc.get("finished_at"):
+        update_doc["finished_at"] = now
+    if update_doc.get("status") == "DNF" and not update_doc.get("dnf_at"):
+        update_doc["dnf_at"] = now
     update_doc["updated_at"] = datetime.utcnow().isoformat()
     result = items_col.update_one(
         {"_id": ObjectId(item_id)},
         {"$set": update_doc},
     )
-    if result.matched_count == 0:
-        return jsonify({"error": "Item not found"}), 404
     updated = items_col.find_one({"_id": ObjectId(item_id)})
     return jsonify(to_json_serializable(updated))
 
