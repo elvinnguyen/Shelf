@@ -156,6 +156,26 @@ def normalize_optional_datetime(value):
         raise ValueError("invalid datetime format") from exc
 
 
+def normalize_cover_url(url):
+    """Return HTTPS + higher-res Google Books cover URL when possible."""
+    if not url:
+        return None
+    parsed = urllib.parse.urlsplit(url)
+    if not parsed.netloc:
+        return url
+    query = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
+    # Ask Google Books for a larger image when available.
+    query["zoom"] = str(max(int(query.get("zoom", "1") or 1), 3))
+    query.pop("edge", None)
+    return urllib.parse.urlunsplit((
+        "https",
+        parsed.netloc,
+        parsed.path,
+        urllib.parse.urlencode(query),
+        parsed.fragment,
+    ))
+
+
 # ——— Error handler (so API always returns JSON) ———
 
 @app.errorhandler(500)
@@ -335,12 +355,14 @@ def get_book_cover():
     volume_info = (volume or {}).get("volumeInfo") or {}
     image_links = volume_info.get("imageLinks") or {}
     cover_url = (
-        image_links.get("thumbnail")
-        or image_links.get("smallThumbnail")
-        or image_links.get("small")
-        or image_links.get("medium")
+        image_links.get("extraLarge")
         or image_links.get("large")
+        or image_links.get("medium")
+        or image_links.get("small")
+        or image_links.get("thumbnail")
+        or image_links.get("smallThumbnail")
     )
+    cover_url = normalize_cover_url(cover_url)
 
     return jsonify({"isbn": isbn, "cover_url": cover_url})
 
