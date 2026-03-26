@@ -181,6 +181,16 @@ def openlibrary_cover_url(isbn):
     return f"https://covers.openlibrary.org/b/isbn/{isbn}-L.jpg?default=false"
 
 
+def url_exists(url, timeout=4):
+    """Return True when URL responds successfully; False otherwise."""
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(req, timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
 # ——— Error handler (so API always returns JSON) ———
 
 @app.errorhandler(500)
@@ -336,6 +346,10 @@ def get_book_cover():
         return jsonify({"error": "isbn query parameter is required"}), 400
     if len(isbn) not in (10, 13):
         return jsonify({"error": "isbn must be a valid 10 or 13 character ISBN"}), 400
+    ol_url = openlibrary_cover_url(isbn)
+    if url_exists(ol_url):
+        return jsonify({"isbn": isbn, "cover_url": ol_url, "source": "openlibrary"})
+
     query_params = {
         "q": f"isbn:{isbn}",
         "maxResults": 1,
@@ -352,9 +366,9 @@ def get_book_cover():
             payload = json.loads(body) if body else {}
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
         # Don't fail the UI if Google Books is unavailable on this host.
-        return jsonify({"isbn": isbn, "cover_url": openlibrary_cover_url(isbn), "source": "openlibrary"})
+        return jsonify({"isbn": isbn, "cover_url": None, "source": None})
     except json.JSONDecodeError:
-        return jsonify({"isbn": isbn, "cover_url": openlibrary_cover_url(isbn), "source": "openlibrary"})
+        return jsonify({"isbn": isbn, "cover_url": None, "source": None})
 
     items = payload.get("items") or []
     volume = items[0] if items else {}
@@ -370,9 +384,9 @@ def get_book_cover():
     )
     cover_url = normalize_cover_url(cover_url)
     if not cover_url:
-        cover_url = openlibrary_cover_url(isbn)
+        return jsonify({"isbn": isbn, "cover_url": None, "source": None})
 
-    return jsonify({"isbn": isbn, "cover_url": cover_url, "source": "google_books" if image_links else "openlibrary"})
+    return jsonify({"isbn": isbn, "cover_url": cover_url, "source": "google_books"})
 
 
 @app.route("/api/items/<item_id>", methods=["DELETE"])
