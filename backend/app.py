@@ -176,6 +176,11 @@ def normalize_cover_url(url):
     ))
 
 
+def openlibrary_cover_url(isbn):
+    """Fallback cover source when Google Books is unavailable."""
+    return f"https://covers.openlibrary.org/b/isbn/{isbn}-L.jpg?default=false"
+
+
 # ——— Error handler (so API always returns JSON) ———
 
 @app.errorhandler(500)
@@ -346,9 +351,10 @@ def get_book_cover():
             body = response.read().decode("utf-8")
             payload = json.loads(body) if body else {}
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
-        return jsonify({"error": "Failed to fetch cover from Google Books"}), 502
+        # Don't fail the UI if Google Books is unavailable on this host.
+        return jsonify({"isbn": isbn, "cover_url": openlibrary_cover_url(isbn), "source": "openlibrary"})
     except json.JSONDecodeError:
-        return jsonify({"error": "Unexpected Google Books response"}), 502
+        return jsonify({"isbn": isbn, "cover_url": openlibrary_cover_url(isbn), "source": "openlibrary"})
 
     items = payload.get("items") or []
     volume = items[0] if items else {}
@@ -363,8 +369,10 @@ def get_book_cover():
         or image_links.get("smallThumbnail")
     )
     cover_url = normalize_cover_url(cover_url)
+    if not cover_url:
+        cover_url = openlibrary_cover_url(isbn)
 
-    return jsonify({"isbn": isbn, "cover_url": cover_url})
+    return jsonify({"isbn": isbn, "cover_url": cover_url, "source": "google_books" if image_links else "openlibrary"})
 
 
 @app.route("/api/items/<item_id>", methods=["DELETE"])
