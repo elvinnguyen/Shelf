@@ -311,16 +311,14 @@ def get_book_cover():
         return jsonify({"error": "isbn query parameter is required"}), 400
     if len(isbn) not in (10, 13):
         return jsonify({"error": "isbn must be a valid 10 or 13 character ISBN"}), 400
-    if not GOOGLE_BOOKS_API_KEY:
-        return jsonify({"error": "GOOGLE_BOOKS_API_KEY is not configured"}), 500
+    query_params = {
+        "q": f"isbn:{isbn}",
+        "maxResults": 1,
+    }
+    if GOOGLE_BOOKS_API_KEY:
+        query_params["key"] = GOOGLE_BOOKS_API_KEY
 
-    query = urllib.parse.urlencode(
-        {
-            "q": f"isbn:{isbn}",
-            "key": GOOGLE_BOOKS_API_KEY,
-            "maxResults": 1,
-        }
-    )
+    query = urllib.parse.urlencode(query_params)
     url = f"https://www.googleapis.com/books/v1/volumes?{query}"
 
     try:

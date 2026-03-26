@@ -15,3 +15,5 @@ services:
         value: shelf
       - key: MONGODB_TLS_INSECURE
         value: "false"
+      - key: GOOGLE_BOOKS_API_KEY
+        sync: false
