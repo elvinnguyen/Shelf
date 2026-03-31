@@ -45,6 +45,13 @@ const FORMAT_FILTER_OPTIONS = [
   { value: "Series (Chapter Based)", label: "Series (Chapter Based)" },
 ];
 
+const STATUS_DONUT = [
+  { status: "Reading", color: "#2563eb" },
+  { status: "TBR", color: "#6b7280" },
+  { status: "Finished", color: "#059669" },
+  { status: "DNF", color: "#dc2626" },
+];
+
 const SUGGESTED_GENRES = [
   "Fantasy",
   "Science Fiction",
@@ -272,6 +279,54 @@ function updateTabCounts(searchFiltered) {
   document.getElementById("summary-dnf").textContent = counts.DNF;
 }
 
+function renderStatusDonut(items) {
+  const donut = document.getElementById("status-donut-chart");
+  const legend = document.getElementById("status-donut-legend");
+  const totalEl = document.getElementById("status-donut-total");
+  const subEl = document.getElementById("status-donut-sub");
+  if (!donut || !legend || !totalEl || !subEl) return;
+
+  const counts = { Reading: 0, TBR: 0, Finished: 0, DNF: 0 };
+  for (const item of items) {
+    if (Object.prototype.hasOwnProperty.call(counts, item.status)) {
+      counts[item.status] += 1;
+    }
+  }
+  const total = items.length;
+  totalEl.textContent = total;
+  subEl.textContent = total === 1 ? "item" : "items";
+
+  if (total === 0) {
+    donut.style.background = "conic-gradient(#e5e7eb 0% 100%)";
+  } else {
+    let cursor = 0;
+    const slices = [];
+    for (const entry of STATUS_DONUT) {
+      const value = counts[entry.status];
+      if (!value) continue;
+      const pct = (value / total) * 100;
+      const end = cursor + pct;
+      slices.push(`${entry.color} ${cursor}% ${end}%`);
+      cursor = end;
+    }
+    donut.style.background = `conic-gradient(${slices.join(", ")})`;
+  }
+
+  legend.innerHTML = STATUS_DONUT.map((entry) => {
+    const count = counts[entry.status];
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    return `
+      <div class="status-donut-legend-row">
+        <span class="status-donut-legend-key">
+          <span class="status-donut-legend-swatch" style="background:${entry.color}"></span>
+          <span>${entry.status}</span>
+        </span>
+        <span class="status-donut-legend-value">${count} (${pct}%)</span>
+      </div>
+    `;
+  }).join("");
+}
+
 function renderItems() {
   const searchFiltered = getFilteredItems();
   updateTabCounts(searchFiltered);
@@ -281,6 +336,7 @@ function renderItems() {
     visible = searchFiltered.filter((item) => item.status === _activeStatus);
   }
 
+  renderStatusDonut(visible);
   _itemsCache = visible;
   const grid = document.getElementById("library-grid");
   grid.innerHTML =

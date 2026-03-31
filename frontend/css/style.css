@@ -414,6 +414,98 @@ body {
   color: #fff;
 }
 
+.status-donut-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.status-donut-header h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.status-donut-layout {
+  margin-top: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-donut {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background: conic-gradient(#e5e7eb 0% 100%);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.status-donut::after {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.status-donut-center {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-donut-total {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-donut-sub {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.status-donut-legend {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 180px;
+}
+
+.status-donut-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  color: #374151;
+}
+
+.status-donut-legend-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.status-donut-legend-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.status-donut-legend-value {
+  color: var(--text-muted);
+}
+
 /* Search bar */
 .dash-controls {
   display: flex;
@@ -1191,6 +1283,11 @@ body {
   .reading-stats-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+  }
+
+  .status-donut-layout {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .search-bar {
