@@ -7,7 +7,7 @@ import json
 import urllib.parse
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
@@ -198,6 +198,57 @@ def normalize_optional_datetime(value):
         raise ValueError("invalid datetime format") from exc
 
 
+def parse_log_datetime(value):
+    """Parse ISO-like timestamp from log entries into datetime or None."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def get_item_progress_logs(doc):
+    """
+    Return progress logs list from either progress_history or progress_logs.
+    Keeps backward compatibility with older naming.
+    """
+    logs = doc.get("progress_history")
+    if isinstance(logs, list):
+        return logs
+    logs = doc.get("progress_logs")
+    if isinstance(logs, list):
+        return logs
+    return []
+
+
+def unit_label(unit):
+    u = (unit or "").lower()
+    if u == "pages":
+        return "pages"
+    if u == "chapters":
+        return "chapters"
+    if u == "minutes":
+        return "minutes"
+    if u == "%":
+        return "percent points"
+    return "units"
+
+
+def preferred_unit(unit_totals):
+    """Pick display unit for dashboard rollups."""
+    if not unit_totals:
+        return "pages"
+    for u in ["pages", "chapters", "minutes", "%"]:
+        if unit_totals.get(u, 0) > 0:
+            return u
+    # Fallback to highest total if custom units exist.
+    return max(unit_totals.items(), key=lambda pair: pair[1])[0]
+
+
 def normalize_cover_url(url):
     """Return HTTPS + higher-res Google Books cover URL when possible."""
     if not url:
@@ -319,6 +370,86 @@ def summary():
         if s not in by_status:
             by_status[s] = 0
     return jsonify({"total": total, "by_status": by_status})
+
+
+@app.route("/api/items/stats/reading", methods=["GET"])
+def reading_stats():
+    """
+    Reading streak + daily stats computed from progress logs.
+    """
+    items = list(items_col.find({}))
+    day_totals = {}
+    day_books = {}
+    day_units = {}
+    unit_totals = {}
+
+    for item in items:
+        item_id = str(item.get("_id"))
+        for entry in get_item_progress_logs(item):
+            delta = _num(entry.get("delta"), 0)
+            if delta <= 0:
+                continue
+            ts = parse_log_datetime(entry.get("timestamp"))
+            if not ts:
+                continue
+            day_key = ts.date().isoformat()
+            unit = (entry.get("unit") or "units").lower()
+
+            if day_key not in day_totals:
+                day_totals[day_key] = {}
+            day_totals[day_key][unit] = day_totals[day_key].get(unit, 0) + delta
+
+            if day_key not in day_books:
+                day_books[day_key] = set()
+            day_books[day_key].add(item_id)
+
+            if day_key not in day_units:
+                day_units[day_key] = set()
+            day_units[day_key].add(unit)
+
+            unit_totals[unit] = unit_totals.get(unit, 0) + delta
+
+    display_unit = preferred_unit(unit_totals)
+
+    today_date = datetime.utcnow().date()
+    today_key = today_date.isoformat()
+    today_value = day_totals.get(today_key, {}).get(display_unit, 0)
+    today_books_count = len(day_books.get(today_key, set()))
+
+    this_week_value = 0
+    this_week_days = 0
+    for days_ago in range(7):
+        d = today_date - timedelta(days=days_ago)
+        k = d.isoformat()
+        v = day_totals.get(k, {}).get(display_unit, 0)
+        if v > 0:
+            this_week_days += 1
+        this_week_value += v
+
+    streak = 0
+    cursor = today_date
+    while cursor.isoformat() in day_books:
+        streak += 1
+        cursor = cursor - timedelta(days=1)
+
+    total_value = unit_totals.get(display_unit, 0)
+
+    return jsonify({
+        "current_streak_days": streak,
+        "unit": display_unit,
+        "unit_label": unit_label(display_unit),
+        "today": {
+            "value": today_value,
+            "books": today_books_count,
+        },
+        "this_week": {
+            "value": this_week_value,
+            "active_days": this_week_days,
+        },
+        "total": {
+            "value": total_value,
+        },
+    })
 
 
 @app.route("/api/items/<item_id>", methods=["GET"])

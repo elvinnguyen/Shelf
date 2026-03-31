@@ -128,6 +128,39 @@ function formatCardDate(value) {
   }
 }
 
+function formatStatNumber(value) {
+  const n = Number(value) || 0;
+  if (Number.isInteger(n)) return String(n);
+  return String(Math.round(n * 10) / 10);
+}
+
+function pluralize(word, count) {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+function renderReadingStats(stats) {
+  const streak = Number(stats && stats.current_streak_days) || 0;
+  const today = (stats && stats.today) || {};
+  const week = (stats && stats.this_week) || {};
+  const total = (stats && stats.total) || {};
+  const unitLabel = (stats && stats.unit_label) || "units";
+
+  const todayValue = formatStatNumber(today.value);
+  const weekValue = formatStatNumber(week.value);
+  const totalValue = formatStatNumber(total.value);
+  const todayBooks = Number(today.books) || 0;
+  const activeDays = Number(week.active_days) || 0;
+
+  document.getElementById("stat-streak-value").textContent = streak;
+  document.getElementById("stat-streak-meta").textContent = `${pluralize("day", streak)} in a row`;
+  document.getElementById("stat-today-value").textContent = todayValue;
+  document.getElementById("stat-today-meta").textContent = `${todayValue} ${unitLabel} from ${pluralize("book", todayBooks)}`;
+  document.getElementById("stat-week-value").textContent = weekValue;
+  document.getElementById("stat-week-meta").textContent = `${weekValue} ${unitLabel} over ${pluralize("day", activeDays)}`;
+  document.getElementById("stat-total-value").textContent = totalValue;
+  document.getElementById("stat-total-meta").textContent = `${totalValue} ${unitLabel} read all time`;
+}
+
 function setupGenreInput({ inputId, datalistId, tagsId }) {
   const input = document.getElementById(inputId);
   const datalist = document.getElementById(datalistId);
@@ -258,7 +291,17 @@ function renderItems() {
 
 async function loadAllItems() {
   try {
-    _allItems = await api("GET", "/items");
+    const [itemsResult, statsResult] = await Promise.allSettled([
+      api("GET", "/items"),
+      api("GET", "/items/stats/reading"),
+    ]);
+    if (itemsResult.status !== "fulfilled") {
+      throw itemsResult.reason;
+    }
+    _allItems = itemsResult.value;
+    if (statsResult.status === "fulfilled") {
+      renderReadingStats(statsResult.value);
+    }
     renderItems();
   } catch (e) {
     showMessage(e.message || "Failed to load library", "error");
