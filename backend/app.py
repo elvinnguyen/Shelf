@@ -117,6 +117,7 @@ def build_item_doc(data):
         "dnf_at": None,
         "thoughts": [],
         "review": None,
+        "progress_history": [],
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
     }
@@ -139,6 +140,47 @@ def _num(v, default=None):
         return float(v) if isinstance(v, (int, float)) else float(v)
     except (TypeError, ValueError):
         return default
+
+
+def progress_snapshot(doc):
+    """Return normalized progress info for diffing and history entries."""
+    progress_type = doc.get("progress_type") or "Pages"
+    if progress_type == "Percent":
+        value = _num(doc.get("percent"), 0)
+        unit = "%"
+    elif progress_type == "Time":
+        value = _num(doc.get("progress_current"), 0)
+        unit = "minutes"
+    elif progress_type == "Chapters":
+        value = _num(doc.get("progress_current"), 0)
+        unit = "chapters"
+    else:
+        value = _num(doc.get("progress_current"), 0)
+        unit = "pages"
+    return {"progress_type": progress_type, "value": value or 0, "unit": unit}
+
+
+def build_progress_history_entry(previous_doc, next_doc):
+    """
+    Create a progress history entry when progress changes.
+    Returns None when there is no change or when progress type changes.
+    """
+    prev = progress_snapshot(previous_doc)
+    nxt = progress_snapshot(next_doc)
+    if prev["progress_type"] != nxt["progress_type"]:
+        return None
+    delta = nxt["value"] - prev["value"]
+    # Only log forward progress; lower values are treated as corrections/reset.
+    if delta <= 0:
+        return None
+    return {
+        "progress_type": nxt["progress_type"],
+        "unit": nxt["unit"],
+        "previous_value": prev["value"],
+        "current_value": nxt["value"],
+        "delta": delta,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 
 def normalize_optional_datetime(value):
@@ -330,8 +372,45 @@ def update_item(item_id):
         update_doc["finished_at"] = now
     if update_doc.get("status") == "DNF" and not update_doc.get("dnf_at"):
         update_doc["dnf_at"] = now
+    progress_history = list(existing.get("progress_history") or [])
+    history_entry = build_progress_history_entry(existing, update_doc)
+    if history_entry:
+        progress_history.append(history_entry)
+    update_doc["progress_history"] = progress_history
     update_doc["updated_at"] = datetime.utcnow().isoformat()
     result = items_col.update_one(
+        {"_id": ObjectId(item_id)},
+        {"$set": update_doc},
+    )
+    updated = items_col.find_one({"_id": ObjectId(item_id)})
+    return jsonify(to_json_serializable(updated))
+
+
+@app.route("/api/items/<item_id>/progress/undo", methods=["POST"])
+def undo_last_progress_update(item_id):
+    """Undo the most recent progress history entry and restore previous value."""
+    if not ObjectId.is_valid(item_id):
+        return jsonify({"error": "Invalid item id"}), 400
+    existing = items_col.find_one({"_id": ObjectId(item_id)})
+    if not existing:
+        return jsonify({"error": "Item not found"}), 404
+    progress_history = list(existing.get("progress_history") or [])
+    if not progress_history:
+        return jsonify({"error": "No progress updates to undo"}), 400
+
+    last_entry = progress_history.pop()
+    previous_value = _num(last_entry.get("previous_value"), 0)
+    progress_type = last_entry.get("progress_type") or existing.get("progress_type") or "Pages"
+    update_doc = {
+        "progress_history": progress_history,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    if progress_type == "Percent":
+        update_doc["percent"] = previous_value
+    else:
+        update_doc["progress_current"] = previous_value
+
+    items_col.update_one(
         {"_id": ObjectId(item_id)},
         {"$set": update_doc},
     )

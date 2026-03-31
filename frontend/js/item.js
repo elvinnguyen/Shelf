@@ -158,6 +158,63 @@ function formatDate(iso) {
   }
 }
 
+function formatDateTime(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: "numeric",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatProgressValue(value, progressType) {
+  const n = Number(value) || 0;
+  if (progressType === "Time") return formatMinutes(n);
+  if (progressType === "Percent") return `${Math.round(n * 10) / 10}%`;
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+}
+
+function formatDelta(entry) {
+  const delta = Number(entry.delta) || 0;
+  const sign = delta > 0 ? "+" : "";
+  const abs = Math.abs(delta);
+  const formatted = formatProgressValue(abs, entry.progress_type);
+  if (entry.progress_type === "Percent") return `${sign}${formatted}`;
+  const unit = entry.unit || "units";
+  return `${sign}${formatted} ${unit}`;
+}
+
+function renderProgressHistory(historyEntries) {
+  const wrap = document.getElementById("progress-history-list");
+  if (!wrap) return;
+  const entries = Array.isArray(historyEntries) ? historyEntries.slice().reverse() : [];
+  if (entries.length === 0) {
+    wrap.innerHTML = '<p class="progress-history-empty">No progress updates yet.</p>';
+    return;
+  }
+  wrap.innerHTML = entries
+    .map((entry) => {
+      const previous = formatProgressValue(entry.previous_value, entry.progress_type);
+      const current = formatProgressValue(entry.current_value, entry.progress_type);
+      return `
+      <div class="progress-history-entry">
+        <div class="progress-history-change">${escapeHtml(formatDelta(entry))}</div>
+        <div class="progress-history-meta">
+          <span>${escapeHtml(previous)} \u2192 ${escapeHtml(current)}</span>
+          <span>${escapeHtml(formatDateTime(entry.timestamp))}</span>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
 function toDateInputValue(value) {
   if (!value) return "";
   try {
@@ -206,6 +263,8 @@ function renderItem(item) {
   document.getElementById("progress-label").textContent = progressLabel(item);
   document.getElementById("progress-bar-wrap").style.display = "block";
   document.getElementById("progress-bar-fill").style.width = pct + "%";
+  renderProgressHistory(item.progress_history || []);
+  updateUndoProgressButton(item);
 
   // Thoughts
   const list = document.getElementById("thoughts-list");
@@ -274,6 +333,15 @@ function showError(msg) {
 
 let _currentItem = null;
 let _isDeletingReview = false;
+let _isUndoingProgress = false;
+
+function updateUndoProgressButton(item) {
+  const btn = document.getElementById("btn-undo-progress");
+  if (!btn) return;
+  const hasHistory = Array.isArray(item && item.progress_history) && item.progress_history.length > 0;
+  btn.disabled = !hasHistory;
+  btn.title = hasHistory ? "Undo the most recent progress update" : "No progress updates to undo";
+}
 
 function setStarRating(val) {
   document.getElementById("review-rating").value = val || "";
@@ -391,6 +459,21 @@ document.addEventListener("DOMContentLoaded", async function () {
         window.location.href = "/dashboard";
       } catch (err) {
         showError(err.message || "Failed to delete item.");
+      }
+    });
+
+    document.getElementById("btn-undo-progress").addEventListener("click", async () => {
+      if (_isUndoingProgress) return;
+      if (!confirm("Undo the most recent progress update?")) return;
+      _isUndoingProgress = true;
+      try {
+        const updated = await api("POST", "/items/" + id + "/progress/undo");
+        _currentItem = updated;
+        renderItem(updated);
+      } catch (err) {
+        showError(err.message || "Failed to undo progress update.");
+      } finally {
+        _isUndoingProgress = false;
       }
     });
 
