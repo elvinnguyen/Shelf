@@ -593,6 +593,41 @@ body {
   color: var(--text-muted);
 }
 
+.alltime-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
+.alltime-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+
+.alltime-stat-card h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.alltime-stat-value {
+  margin-top: 0.7rem;
+  font-size: 1.65rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #111827;
+}
+
+.alltime-stat-meta {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 /* Search bar */
 .dash-controls {
   display: flex;
@@ -1375,6 +1410,11 @@ body {
   .status-donut-layout {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .alltime-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 
   .search-bar {

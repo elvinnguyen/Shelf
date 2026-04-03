@@ -248,6 +248,12 @@ function startOfDay(date) {
   return d;
 }
 
+function getItemProgressLogs(item) {
+  if (Array.isArray(item.progress_history)) return item.progress_history;
+  if (Array.isArray(item.progress_logs)) return item.progress_logs;
+  return [];
+}
+
 function getWeeklyProgressForGoalType(goalType) {
   const unitByType = {
     pages: "pages",
@@ -278,6 +284,97 @@ function getWeeklyProgressForGoalType(goalType) {
     }
   }
   return { value, activeDays: dayKeys.size };
+}
+
+function computeAllTimeStats(items, unit) {
+  const expectedUnit = (unit || "pages").toLowerCase();
+  const dailyTotals = {};
+
+  for (const item of items) {
+    const logs = getItemProgressLogs(item);
+    for (const entry of logs) {
+      const entryUnit = (entry && entry.unit ? String(entry.unit) : "").toLowerCase();
+      if (entryUnit !== expectedUnit) continue;
+      const delta = Number(entry && entry.delta);
+      if (!Number.isFinite(delta) || delta <= 0) continue;
+      const ts = parseLogDate(entry && entry.timestamp);
+      if (!ts) continue;
+      const dayKey = startOfDay(ts).toISOString().slice(0, 10);
+      dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + delta;
+    }
+  }
+
+  const dayKeys = Object.keys(dailyTotals).sort();
+  const activeDaysCount = dayKeys.length;
+  if (activeDaysCount === 0) {
+    return {
+      bestDayValue: 0,
+      bestDayDate: null,
+      averagePerActiveDay: 0,
+      activeDaysCount: 0,
+      longestStreak: 0,
+    };
+  }
+
+  let bestDayValue = 0;
+  let bestDayDate = dayKeys[0];
+  let total = 0;
+  for (const day of dayKeys) {
+    const value = dailyTotals[day] || 0;
+    total += value;
+    if (value > bestDayValue) {
+      bestDayValue = value;
+      bestDayDate = day;
+    }
+  }
+
+  let longestStreak = 1;
+  let currentStreak = 1;
+  for (let i = 1; i < dayKeys.length; i++) {
+    const prev = new Date(dayKeys[i - 1]);
+    const next = new Date(dayKeys[i]);
+    const diffDays = Math.round((next - prev) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      currentStreak += 1;
+      if (currentStreak > longestStreak) longestStreak = currentStreak;
+    } else {
+      currentStreak = 1;
+    }
+  }
+
+  return {
+    bestDayValue,
+    bestDayDate,
+    averagePerActiveDay: total / activeDaysCount,
+    activeDaysCount,
+    longestStreak,
+  };
+}
+
+function formatDayLabel(dayKey) {
+  if (!dayKey) return "No activity yet";
+  try {
+    return new Date(dayKey).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dayKey;
+  }
+}
+
+function renderAllTimeStats(unitLabel, stats) {
+  document.getElementById("alltime-best-day-value").textContent = formatStatNumber(stats.bestDayValue);
+  document.getElementById("alltime-best-day-meta").textContent =
+    stats.activeDaysCount > 0
+      ? `${formatDayLabel(stats.bestDayDate)} • ${unitLabel}`
+      : "No activity yet";
+  document.getElementById("alltime-avg-day-value").textContent = formatStatNumber(stats.averagePerActiveDay);
+  document.getElementById("alltime-avg-day-meta").textContent =
+    `${unitLabel} across ${pluralize("active day", stats.activeDaysCount)}`;
+  document.getElementById("alltime-longest-streak-value").textContent = formatStatNumber(stats.longestStreak);
+  document.getElementById("alltime-longest-streak-meta").textContent = "days in a row";
 }
 
 function renderReadingStats(stats) {
@@ -323,6 +420,7 @@ function renderReadingStats(stats) {
   document.getElementById("stat-goal-status").textContent = `${goalStatus} • ${goal.label}`;
   document.getElementById("stat-total-value").textContent = totalValue;
   document.getElementById("stat-total-meta").textContent = `${totalValue} ${unitLabel} read all time`;
+  renderAllTimeStats(unitLabel, computeAllTimeStats(_allItems, unit));
 }
 
 function setupGoalEditor() {
