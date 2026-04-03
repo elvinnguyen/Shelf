@@ -9,6 +9,13 @@ let _searchQuery = "";
 let _activeFormat = "";
 let _allItems = [];
 let _itemsCache = [];
+let _latestReadingStats = null;
+let _goalOverrides = {};
+const WEEKLY_GOALS_STORAGE_KEY = "shelf_weekly_goal_overrides_v1";
+const WEEKLY_GOAL_TYPE_STORAGE_KEY = "shelf_weekly_goal_type_v1";
+let _weeklyGoalModal = null;
+let _selectedGoalType = "pages";
+const WEEKLY_GOAL_UNITS = new Set(["pages", "minutes", "chapters"]);
 
 function showMessage(text, type) {
   const el = document.getElementById("message");
@@ -145,27 +152,256 @@ function pluralize(word, count) {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
+function loadGoalOverrides() {
+  try {
+    const raw = localStorage.getItem(WEEKLY_GOALS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveGoalOverrides() {
+  try {
+    localStorage.setItem(WEEKLY_GOALS_STORAGE_KEY, JSON.stringify(_goalOverrides));
+  } catch {
+    // Ignore storage failures in private browsing or restricted environments.
+  }
+}
+
+function loadSelectedGoalType() {
+  try {
+    const raw = localStorage.getItem(WEEKLY_GOAL_TYPE_STORAGE_KEY);
+    if (WEEKLY_GOAL_UNITS.has(raw)) return raw;
+    return "pages";
+  } catch {
+    return "pages";
+  }
+}
+
+function saveSelectedGoalType(unit) {
+  if (!WEEKLY_GOAL_UNITS.has(unit)) return;
+  try {
+    localStorage.setItem(WEEKLY_GOAL_TYPE_STORAGE_KEY, unit);
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
+function formatGoalLabel(unit, target) {
+  const targetValue = formatStatNumber(target);
+  if (unit === "minutes") {
+    if (target % 60 === 0) {
+      return `${formatStatNumber(target / 60)} hours/week`;
+    }
+    return `${targetValue} minutes/week`;
+  }
+  if (unit === "chapters") return `${targetValue} chapters/week`;
+  return `${targetValue} pages/week`;
+}
+
+function goalTypeLabel(unit) {
+  if (unit === "minutes") return "hours";
+  if (unit === "chapters") return "chapters";
+  return "pages";
+}
+
+function updateWeeklyGoalFormHint(unit) {
+  const hint = document.getElementById("weekly-goal-hint");
+  if (!hint) return;
+  if (unit === "minutes") {
+    hint.textContent = "Enter total minutes to read/listen this week (e.g. 300 = 5 hours)";
+    return;
+  }
+  if (unit === "chapters") {
+    hint.textContent = "Number of chapters to read this week";
+    return;
+  }
+  hint.textContent = "Number of pages to read this week";
+}
+
+function getWeeklyGoal(unit) {
+  const defaults = {
+    pages: { target: 300, unitLabel: "pages" },
+    chapters: { target: 20, unitLabel: "chapters" },
+    minutes: { target: 300, unitLabel: "minutes" },
+  };
+  const key = unit in defaults ? unit : "pages";
+  const fallback = defaults[key];
+  const override = Number(_goalOverrides[key]);
+  const target = Number.isFinite(override) && override > 0 ? override : fallback.target;
+  return { target, unitLabel: fallback.unitLabel, label: formatGoalLabel(key, target), key };
+}
+
+function parseLogDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getWeeklyProgressForGoalType(goalType) {
+  const unitByType = {
+    pages: "pages",
+    chapters: "chapters",
+    minutes: "minutes",
+  };
+  const expectedUnit = unitByType[goalType] || "pages";
+  const now = new Date();
+  const start = startOfDay(now);
+  start.setDate(start.getDate() - 6);
+
+  let value = 0;
+  const dayKeys = new Set();
+  for (const item of _allItems) {
+    const logs = Array.isArray(item.progress_history)
+      ? item.progress_history
+      : (Array.isArray(item.progress_logs) ? item.progress_logs : []);
+    for (const entry of logs) {
+      const unit = (entry && entry.unit ? String(entry.unit) : "").toLowerCase();
+      if (unit !== expectedUnit) continue;
+      const delta = Number(entry && entry.delta);
+      if (!Number.isFinite(delta) || delta <= 0) continue;
+      const ts = parseLogDate(entry && entry.timestamp);
+      if (!ts) continue;
+      if (ts < start || ts > now) continue;
+      value += delta;
+      dayKeys.add(startOfDay(ts).toISOString().slice(0, 10));
+    }
+  }
+  return { value, activeDays: dayKeys.size };
+}
+
 function renderReadingStats(stats) {
+  _latestReadingStats = stats || null;
   const streak = Number(stats && stats.current_streak_days) || 0;
   const today = (stats && stats.today) || {};
   const week = (stats && stats.this_week) || {};
   const total = (stats && stats.total) || {};
+  const unit = (stats && stats.unit) || "pages";
   const unitLabel = (stats && stats.unit_label) || "units";
 
   const todayValue = formatStatNumber(today.value);
-  const weekValue = formatStatNumber(week.value);
+  const rawWeekValue = Number(week.value) || 0;
+  const weekValue = formatStatNumber(rawWeekValue);
   const totalValue = formatStatNumber(total.value);
   const todayBooks = Number(today.books) || 0;
   const activeDays = Number(week.active_days) || 0;
+  if (!WEEKLY_GOAL_UNITS.has(_selectedGoalType)) {
+    _selectedGoalType = WEEKLY_GOAL_UNITS.has(unit) ? unit : "pages";
+  }
+  const goal = getWeeklyGoal(_selectedGoalType);
+  const goalWeek = getWeeklyProgressForGoalType(goal.key);
+  const goalWeekValue = goalWeek.value;
+  const goalWeekValueLabel = formatStatNumber(goalWeekValue);
+  const weekGoalPct = goal.target > 0 ? Math.min(999, Math.round((goalWeekValue / goal.target) * 100)) : 0;
+  const goalPctClamped = Math.min(100, weekGoalPct);
+  const goalStatus =
+    weekGoalPct >= 100
+      ? "Goal reached!"
+      : `${formatStatNumber(goal.target - goalWeekValue)} ${goal.unitLabel} to go`;
 
   document.getElementById("stat-streak-value").textContent = streak;
   document.getElementById("stat-streak-meta").textContent = `${pluralize("day", streak)} in a row`;
   document.getElementById("stat-today-value").textContent = todayValue;
   document.getElementById("stat-today-meta").textContent = `${todayValue} ${unitLabel} from ${pluralize("book", todayBooks)}`;
   document.getElementById("stat-week-value").textContent = weekValue;
-  document.getElementById("stat-week-meta").textContent = `${weekValue} ${unitLabel} over ${pluralize("day", activeDays)}`;
+  document.getElementById("stat-week-meta").textContent = `${weekValue} ${unitLabel} read`;
+  document.getElementById("stat-week-days-meta").textContent = `${pluralize("day", activeDays)} active`;
+  document.getElementById("stat-goal-value").textContent = `${weekGoalPct}%`;
+  document.getElementById("stat-goal-meta").textContent =
+    `${goalWeekValueLabel} / ${formatStatNumber(goal.target)} ${goal.unitLabel}`;
+  document.getElementById("stat-goal-progress-fill").style.width = `${goalPctClamped}%`;
+  document.getElementById("stat-goal-status").textContent = `${goalStatus} • ${goal.label}`;
   document.getElementById("stat-total-value").textContent = totalValue;
   document.getElementById("stat-total-meta").textContent = `${totalValue} ${unitLabel} read all time`;
+}
+
+function setupGoalEditor() {
+  const editBtn = document.getElementById("btn-edit-weekly-goal");
+  if (!editBtn) return;
+  editBtn.addEventListener("click", () => {
+    const defaultUnit = WEEKLY_GOAL_UNITS.has(_selectedGoalType)
+      ? _selectedGoalType
+      : ((_latestReadingStats && _latestReadingStats.unit) || "pages");
+    const select = document.getElementById("weekly-goal-type");
+    const targetInput = document.getElementById("weekly-goal-target");
+    const error = document.getElementById("weekly-goal-error");
+    if (!select || !targetInput || !error) return;
+
+    const unit = WEEKLY_GOAL_UNITS.has(defaultUnit) ? defaultUnit : "pages";
+    select.value = unit;
+    const goal = getWeeklyGoal(unit);
+    targetInput.value = String(goal.target);
+    error.textContent = "";
+    updateWeeklyGoalFormHint(unit);
+    openWeeklyGoalModal();
+  });
+}
+
+function openWeeklyGoalModal() {
+  if (!_weeklyGoalModal) return;
+  _weeklyGoalModal.hidden = false;
+  _weeklyGoalModal.style.display = "";
+}
+
+function closeWeeklyGoalModal() {
+  if (!_weeklyGoalModal) return;
+  _weeklyGoalModal.hidden = true;
+  _weeklyGoalModal.style.display = "none";
+}
+
+function setupWeeklyGoalModal() {
+  _weeklyGoalModal = document.getElementById("modal-weekly-goal");
+  const closeBtn = document.getElementById("btn-close-weekly-goal");
+  const cancelBtn = document.getElementById("btn-cancel-weekly-goal");
+  const form = document.getElementById("weekly-goal-form");
+  const select = document.getElementById("weekly-goal-type");
+  const input = document.getElementById("weekly-goal-target");
+  const error = document.getElementById("weekly-goal-error");
+  if (!_weeklyGoalModal || !closeBtn || !cancelBtn || !form || !select || !input || !error) return;
+
+  _weeklyGoalModal.hidden = true;
+  _weeklyGoalModal.style.display = "none";
+  closeBtn.addEventListener("click", closeWeeklyGoalModal);
+  cancelBtn.addEventListener("click", closeWeeklyGoalModal);
+  _weeklyGoalModal.addEventListener("click", (e) => {
+    if (e.target === _weeklyGoalModal) closeWeeklyGoalModal();
+  });
+  form.addEventListener("click", (e) => e.stopPropagation());
+
+  select.addEventListener("change", () => {
+    const goal = getWeeklyGoal(select.value);
+    input.value = String(goal.target);
+    error.textContent = "";
+    updateWeeklyGoalFormHint(select.value);
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const unit = select.value;
+    const value = Number(input.value);
+    error.textContent = "";
+    if (!Number.isFinite(value) || value <= 0) {
+      error.textContent = "Please enter a valid positive target.";
+      return;
+    }
+    _selectedGoalType = unit;
+    saveSelectedGoalType(unit);
+    _goalOverrides[unit] = value;
+    saveGoalOverrides();
+    closeWeeklyGoalModal();
+    if (_latestReadingStats) renderReadingStats(_latestReadingStats);
+    showMessage(`Weekly ${goalTypeLabel(unit)} goal updated.`, "success");
+  });
 }
 
 function setupGenreInput({ inputId, datalistId, tagsId }) {
@@ -651,10 +887,14 @@ function setupGridActions() {
 // --- Init ---
 
 document.addEventListener("DOMContentLoaded", function () {
+  _goalOverrides = loadGoalOverrides();
+  _selectedGoalType = loadSelectedGoalType();
   setupModal();
   setupTabs();
   setupSearch();
   setupFormatFilter();
   setupGridActions();
+  setupWeeklyGoalModal();
+  setupGoalEditor();
   loadAllItems();
 });

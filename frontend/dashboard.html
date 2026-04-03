@@ -30,7 +30,20 @@
       <article class="reading-stat-card">
         <h3>This Week</h3>
         <div class="reading-stat-value" id="stat-week-value">0</div>
-        <p class="reading-stat-meta" id="stat-week-meta">units over 0 days</p>
+        <p class="reading-stat-meta" id="stat-week-meta">0 pages read</p>
+        <p class="reading-stat-goal-meta" id="stat-week-days-meta">0 days active</p>
+      </article>
+      <article class="reading-stat-card">
+        <div class="reading-stat-heading">
+          <h3>Weekly Goal</h3>
+          <button type="button" class="reading-goal-edit-btn" id="btn-edit-weekly-goal">Edit</button>
+        </div>
+        <div class="reading-stat-value" id="stat-goal-value">0%</div>
+        <p class="reading-stat-meta" id="stat-goal-meta">0 / 300 pages</p>
+        <div class="reading-goal-progress">
+          <div class="reading-goal-progress-fill" id="stat-goal-progress-fill"></div>
+        </div>
+        <p class="reading-stat-goal-meta" id="stat-goal-status">Keep going</p>
       </article>
       <article class="reading-stat-card">
         <h3>Total</h3>
@@ -170,6 +183,36 @@
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="btn-cancel-form">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Weekly goal modal -->
+  <div class="modal" id="modal-weekly-goal" hidden style="display:none;">
+    <div class="modal-content goal-modal-content">
+      <div class="goal-modal-header">
+        <h2>Set Weekly Reading Goal</h2>
+        <button type="button" class="goal-modal-close" id="btn-close-weekly-goal" aria-label="Close">×</button>
+      </div>
+      <form id="weekly-goal-form">
+        <div class="form-group">
+          <label for="weekly-goal-type">Goal Type</label>
+          <select id="weekly-goal-type" class="select">
+            <option value="pages">Pages per week</option>
+            <option value="minutes">Hours per week</option>
+            <option value="chapters">Chapters per week</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="weekly-goal-target">Target</label>
+          <input type="number" id="weekly-goal-target" class="input" min="1" step="1" placeholder="e.g. 300" required />
+          <p class="form-hint" id="weekly-goal-hint">Number of pages to read this week</p>
+          <span class="error" id="weekly-goal-error"></span>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-weekly-goal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Goal</button>
         </div>
       </form>
     </div>
