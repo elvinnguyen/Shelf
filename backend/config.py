@@ -13,6 +13,11 @@ GOOGLE_BOOKS_API_KEY = os.getenv("GOOGLE_BOOKS_API_KEY", "").strip()
 # Set to 1 or true to skip SSL cert verification (macOS dev workaround for CERTIFICATE_VERIFY_FAILED)
 MONGODB_TLS_INSECURE = os.getenv("MONGODB_TLS_INSECURE", "").lower() in ("1", "true", "yes")
 
+# JWT auth
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+JWT_EXPIRATION_HOURS = 24
+USERS_COLLECTION = "users"
+
 # Allowed values for validation
 FORMATS = ["Physical", "Audiobook", "Series (Chapter Based)"]
 STATUSES = ["Reading", "TBR", "Finished", "DNF"]

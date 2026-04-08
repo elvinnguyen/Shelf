@@ -1496,3 +1496,74 @@ body {
   }
 
 }
+
+/* =============================================
+   Login / Register page
+   ============================================= */
+
+.login-main {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.login-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md, 0 2px 12px rgba(0,0,0,0.08));
+  padding: 2rem;
+}
+
+.login-card h2 {
+  margin: 0 0 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.btn-full {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.auth-error {
+  font-size: 0.9rem;
+  color: var(--status-dnf);
+  min-height: 1.4em;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.auth-toggle {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.auth-toggle a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-toggle a:hover {
+  text-decoration: underline;
+}
+
+/* Logout button in headers */
+.btn-logout {
+  background: none;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-logout:hover {
+  border-color: var(--text);
+  color: var(--text);
+}

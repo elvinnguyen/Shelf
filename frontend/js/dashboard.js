@@ -3,6 +3,7 @@
  * All filtering happens client-side for instant feedback.
  */
 const API = "/api";
+const TOKEN_KEY = "shelf_token";
 
 let _activeStatus = "";
 let _searchQuery = "";
@@ -29,9 +30,17 @@ function showMessage(text, type) {
 }
 
 async function api(method, path, body) {
-  const opts = { method, headers: { "Content-Type": "application/json" } };
+  const token = localStorage.getItem(TOKEN_KEY);
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = "Bearer " + token;
+  const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/login";
+    return;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data.error || data.message || res.statusText;
@@ -1019,6 +1028,10 @@ function setupGridActions() {
 // --- Init ---
 
 document.addEventListener("DOMContentLoaded", function () {
+  if (!localStorage.getItem(TOKEN_KEY)) {
+    window.location.href = "/login";
+    return;
+  }
   _goalOverrides = loadGoalOverrides();
   _selectedGoalType = loadSelectedGoalType();
   setupModal();
@@ -1030,4 +1043,8 @@ document.addEventListener("DOMContentLoaded", function () {
   setupGoalEditor();
   setupAllTimeRangeFilter();
   loadAllItems();
+  document.getElementById("btn-logout").addEventListener("click", function () {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/login";
+  });
 });

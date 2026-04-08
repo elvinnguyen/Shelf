@@ -10,22 +10,16 @@ import urllib.error
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pymongo import MongoClient
 from bson import ObjectId
-from config import MONGODB_URI, DATABASE_NAME, ITEMS_COLLECTION, MONGODB_TLS_INSECURE
 from config import FORMATS, STATUSES, PROGRESS_TYPES, GOOGLE_BOOKS_API_KEY
+from db import items_col
+from auth import auth_bp, require_auth
 
 _static = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app = Flask(__name__, static_folder=_static, static_url_path="")
 CORS(app)
 
-# MongoDB connection (tlsAllowInvalidCertificates for macOS SSL cert issues in dev)
-client = MongoClient(
-    MONGODB_URI,
-    tlsAllowInvalidCertificates=MONGODB_TLS_INSECURE,
-)
-db = client[DATABASE_NAME]
-items_col = db[ITEMS_COLLECTION]
+app.register_blueprint(auth_bp)
 
 
 def to_json_serializable(doc):
@@ -291,11 +285,16 @@ def handle_500(e):
     return jsonify({"error": str(e) or "Internal server error"}), 500
 
 
-# ——— API routes ———
+# ——— Page routes ———
 
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
+
+
+@app.route("/login")
+def login_page():
+    return app.send_static_file("login.html")
 
 
 @app.route("/dashboard")
@@ -308,7 +307,10 @@ def item_page(item_id):
     return app.send_static_file("item.html")
 
 
+# ——— API routes ———
+
 @app.route("/api/items", methods=["POST"])
+@require_auth
 def create_item():
     data = request.get_json(silent=True)
     if data is None:
@@ -317,6 +319,7 @@ def create_item():
     if not valid:
         return jsonify({"error": err}), 400
     doc = build_item_doc(data)
+    doc["user_id"] = request.user_id
     now = datetime.utcnow().isoformat()
     if doc.get("status") == "Reading" and not doc.get("started_at"):
         doc["started_at"] = now
@@ -333,13 +336,14 @@ def create_item():
 
 
 @app.route("/api/items", methods=["GET"])
+@require_auth
 def list_items():
     status = request.args.get("status")
     format_filter = request.args.get("format")
     genre = request.args.get("genre")
     q = request.args.get("q", "").strip()
 
-    query = {}
+    query = {"user_id": request.user_id}
     if status:
         query["status"] = status
     if format_filter:
@@ -358,10 +362,13 @@ def list_items():
 
 
 @app.route("/api/items/summary")
+@require_auth
 def summary():
     """Return counts: total, and by status. Optional for dashboard."""
-    total = items_col.count_documents({})
+    user_filter = {"user_id": request.user_id}
+    total = items_col.count_documents(user_filter)
     pipeline = [
+        {"$match": user_filter},
         {"$group": {"_id": "$status", "count": {"$sum": 1}}},
         {"$sort": {"_id": 1}},
     ]
@@ -373,11 +380,12 @@ def summary():
 
 
 @app.route("/api/items/stats/reading", methods=["GET"])
+@require_auth
 def reading_stats():
     """
     Reading streak + daily stats computed from progress logs.
     """
-    items = list(items_col.find({}))
+    items = list(items_col.find({"user_id": request.user_id}))
     day_totals = {}
     day_books = {}
     day_units = {}
@@ -453,22 +461,24 @@ def reading_stats():
 
 
 @app.route("/api/items/<item_id>", methods=["GET"])
+@require_auth
 def get_item(item_id):
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
-    doc = items_col.find_one({"_id": ObjectId(item_id)})
+    doc = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     if not doc:
         return jsonify({"error": "Item not found"}), 404
     return jsonify(to_json_serializable(doc))
 
 
 @app.route("/api/items/<item_id>", methods=["PUT"])
+@require_auth
 def update_item(item_id):
     """Optional: full update of item."""
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
     data = request.get_json()
-    existing = items_col.find_one({"_id": ObjectId(item_id)})
+    existing = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     if not existing:
         return jsonify({"error": "Item not found"}), 404
     valid, err = validate_item(data)
@@ -509,20 +519,21 @@ def update_item(item_id):
         progress_history.append(history_entry)
     update_doc["progress_history"] = progress_history
     update_doc["updated_at"] = datetime.utcnow().isoformat()
-    result = items_col.update_one(
-        {"_id": ObjectId(item_id)},
+    items_col.update_one(
+        {"_id": ObjectId(item_id), "user_id": request.user_id},
         {"$set": update_doc},
     )
-    updated = items_col.find_one({"_id": ObjectId(item_id)})
+    updated = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     return jsonify(to_json_serializable(updated))
 
 
 @app.route("/api/items/<item_id>/progress/undo", methods=["POST"])
+@require_auth
 def undo_last_progress_update(item_id):
     """Undo the most recent progress history entry and restore previous value."""
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
-    existing = items_col.find_one({"_id": ObjectId(item_id)})
+    existing = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     if not existing:
         return jsonify({"error": "Item not found"}), 404
     progress_history = list(existing.get("progress_history") or [])
@@ -542,10 +553,10 @@ def undo_last_progress_update(item_id):
         update_doc["progress_current"] = previous_value
 
     items_col.update_one(
-        {"_id": ObjectId(item_id)},
+        {"_id": ObjectId(item_id), "user_id": request.user_id},
         {"$set": update_doc},
     )
-    updated = items_col.find_one({"_id": ObjectId(item_id)})
+    updated = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     return jsonify(to_json_serializable(updated))
 
 
@@ -600,17 +611,19 @@ def get_book_cover():
 
 
 @app.route("/api/items/<item_id>", methods=["DELETE"])
+@require_auth
 def delete_item(item_id):
     """Optional: delete item."""
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
-    result = items_col.delete_one({"_id": ObjectId(item_id)})
+    result = items_col.delete_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     if result.deleted_count == 0:
         return jsonify({"error": "Item not found"}), 404
     return jsonify({"deleted": True}), 200
 
 
 @app.route("/api/items/<item_id>/thoughts", methods=["POST"])
+@require_auth
 def add_thought(item_id):
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
@@ -625,20 +638,21 @@ def add_thought(item_id):
         "timestamp": datetime.utcnow().isoformat(),
     }
     result = items_col.update_one(
-        {"_id": ObjectId(item_id)},
+        {"_id": ObjectId(item_id), "user_id": request.user_id},
         {"$push": {"thoughts": entry}, "$set": {"updated_at": datetime.utcnow().isoformat()}},
     )
     if result.matched_count == 0:
         return jsonify({"error": "Item not found"}), 404
-    doc = items_col.find_one({"_id": ObjectId(item_id)})
+    doc = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     return jsonify(to_json_serializable(doc))
 
 
 @app.route("/api/items/<item_id>/thoughts/<int:idx>", methods=["DELETE"])
+@require_auth
 def delete_thought(item_id, idx):
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
-    doc = items_col.find_one({"_id": ObjectId(item_id)})
+    doc = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     if not doc:
         return jsonify({"error": "Item not found"}), 404
     thoughts = doc.get("thoughts", [])
@@ -646,14 +660,15 @@ def delete_thought(item_id, idx):
         return jsonify({"error": "Thought index out of range"}), 400
     thoughts.pop(idx)
     items_col.update_one(
-        {"_id": ObjectId(item_id)},
+        {"_id": ObjectId(item_id), "user_id": request.user_id},
         {"$set": {"thoughts": thoughts, "updated_at": datetime.utcnow().isoformat()}},
     )
-    updated = items_col.find_one({"_id": ObjectId(item_id)})
+    updated = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     return jsonify(to_json_serializable(updated))
 
 
 @app.route("/api/items/<item_id>/review", methods=["POST"])
+@require_auth
 def set_review(item_id):
     if not ObjectId.is_valid(item_id):
         return jsonify({"error": "Invalid item id"}), 400
@@ -673,12 +688,12 @@ def set_review(item_id):
         "updated_at": datetime.utcnow().isoformat(),
     }
     result = items_col.update_one(
-        {"_id": ObjectId(item_id)},
+        {"_id": ObjectId(item_id), "user_id": request.user_id},
         {"$set": {"review": review, "updated_at": datetime.utcnow().isoformat()}},
     )
     if result.matched_count == 0:
         return jsonify({"error": "Item not found"}), 404
-    doc = items_col.find_one({"_id": ObjectId(item_id)})
+    doc = items_col.find_one({"_id": ObjectId(item_id), "user_id": request.user_id})
     return jsonify(to_json_serializable(doc))
 
 

@@ -2,6 +2,7 @@
  * Shelf — Item detail: progress, thoughts, review.
  */
 const API = "/api";
+const TOKEN_KEY = "shelf_token";
 const _coverCache = new Map();
 
 function getItemId() {
@@ -11,9 +12,17 @@ function getItemId() {
 }
 
 async function api(method, path, body) {
-  const opts = { method, headers: { "Content-Type": "application/json" } };
+  const token = localStorage.getItem(TOKEN_KEY);
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = "Bearer " + token;
+  const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/login";
+    return;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
@@ -433,6 +442,17 @@ function getEditPayload() {
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
+  if (!localStorage.getItem(TOKEN_KEY)) {
+    window.location.href = "/login";
+    return;
+  }
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", function () {
+      localStorage.removeItem(TOKEN_KEY);
+      window.location.href = "/login";
+    });
+  }
   const id = getItemId();
   if (!id) {
     showError("Invalid item.");

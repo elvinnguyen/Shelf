@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — Shelf</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="landing">
+  <header class="header">
+    <h1 class="logo">Shelf</h1>
+    <p class="tagline">Your personal library</p>
+  </header>
+  <main class="main login-main">
+    <div class="login-card">
+      <h2 id="auth-title">Log in</h2>
+      <form id="auth-form" autocomplete="on">
+        <div class="form-group">
+          <label for="auth-email">Email</label>
+          <input type="email" id="auth-email" class="input" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" class="input" required autocomplete="current-password" />
+        </div>
+        <div class="form-group" id="confirm-group" hidden>
+          <label for="auth-confirm">Confirm Password</label>
+          <input type="password" id="auth-confirm" class="input" autocomplete="new-password" />
+        </div>
+        <div class="auth-error" id="auth-error"></div>
+        <button type="submit" class="btn btn-primary btn-full" id="auth-submit">Log in</button>
+      </form>
+      <p class="auth-toggle">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <a href="#" id="auth-toggle-link">Register</a>
+      </p>
+    </div>
+  </main>
+  <footer class="footer">
+    <p>Shelf MVP — Track what you read.</p>
+  </footer>
+  <script src="/js/login.js"></script>
+</body>
+</html>
