@@ -16,6 +16,7 @@ const WEEKLY_GOAL_TYPE_STORAGE_KEY = "shelf_weekly_goal_type_v1";
 let _weeklyGoalModal = null;
 let _selectedGoalType = "pages";
 const WEEKLY_GOAL_UNITS = new Set(["pages", "minutes", "chapters"]);
+let _allTimeRange = "all";
 
 function showMessage(text, type) {
   const el = document.getElementById("message");
@@ -254,6 +255,25 @@ function getItemProgressLogs(item) {
   return [];
 }
 
+function getRangeStart(range) {
+  if (range === "all") return null;
+  const now = new Date();
+  const start = startOfDay(now);
+  if (range === "week") {
+    start.setDate(start.getDate() - 6);
+    return start;
+  }
+  if (range === "month") {
+    start.setMonth(start.getMonth() - 1);
+    return start;
+  }
+  if (range === "year") {
+    start.setFullYear(start.getFullYear() - 1);
+    return start;
+  }
+  return null;
+}
+
 function getWeeklyProgressForGoalType(goalType) {
   const unitByType = {
     pages: "pages",
@@ -286,9 +306,10 @@ function getWeeklyProgressForGoalType(goalType) {
   return { value, activeDays: dayKeys.size };
 }
 
-function computeAllTimeStats(items, unit) {
+function computeAllTimeStats(items, unit, range) {
   const expectedUnit = (unit || "pages").toLowerCase();
   const dailyTotals = {};
+  const rangeStart = getRangeStart(range);
 
   for (const item of items) {
     const logs = getItemProgressLogs(item);
@@ -299,6 +320,7 @@ function computeAllTimeStats(items, unit) {
       if (!Number.isFinite(delta) || delta <= 0) continue;
       const ts = parseLogDate(entry && entry.timestamp);
       if (!ts) continue;
+      if (rangeStart && ts < rangeStart) continue;
       const dayKey = startOfDay(ts).toISOString().slice(0, 10);
       dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + delta;
     }
@@ -377,6 +399,18 @@ function renderAllTimeStats(unitLabel, stats) {
   document.getElementById("alltime-longest-streak-meta").textContent = "days in a row";
 }
 
+function setupAllTimeRangeFilter() {
+  const select = document.getElementById("alltime-range-filter");
+  if (!select) return;
+  select.value = _allTimeRange;
+  select.addEventListener("change", () => {
+    _allTimeRange = select.value;
+    if (_latestReadingStats) {
+      renderReadingStats(_latestReadingStats);
+    }
+  });
+}
+
 function renderReadingStats(stats) {
   _latestReadingStats = stats || null;
   const streak = Number(stats && stats.current_streak_days) || 0;
@@ -420,7 +454,7 @@ function renderReadingStats(stats) {
   document.getElementById("stat-goal-status").textContent = `${goalStatus} • ${goal.label}`;
   document.getElementById("stat-total-value").textContent = totalValue;
   document.getElementById("stat-total-meta").textContent = `${totalValue} ${unitLabel} read all time`;
-  renderAllTimeStats(unitLabel, computeAllTimeStats(_allItems, unit));
+  renderAllTimeStats(unitLabel, computeAllTimeStats(_allItems, unit, _allTimeRange));
 }
 
 function setupGoalEditor() {
@@ -994,5 +1028,6 @@ document.addEventListener("DOMContentLoaded", function () {
   setupGridActions();
   setupWeeklyGoalModal();
   setupGoalEditor();
+  setupAllTimeRangeFilter();
   loadAllItems();
 });

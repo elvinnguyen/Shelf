@@ -67,7 +67,17 @@
       </div>
     </section>
 
-    <section class="alltime-stats-grid" id="alltime-stats">
+    <section class="alltime-section" id="alltime-stats">
+      <div class="alltime-header">
+        <h3>Reading Stats</h3>
+        <select id="alltime-range-filter" class="alltime-range-select" aria-label="All-time stats range">
+          <option value="all">All Time</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="year">Year</option>
+        </select>
+      </div>
+      <div class="alltime-stats-grid">
       <article class="alltime-stat-card">
         <h3>Best Day</h3>
         <div class="alltime-stat-value" id="alltime-best-day-value">0</div>
@@ -83,6 +93,7 @@
         <div class="alltime-stat-value" id="alltime-longest-streak-value">0</div>
         <p class="alltime-stat-meta" id="alltime-longest-streak-meta">days in a row</p>
       </article>
+      </div>
     </section>
 
     <div class="dash-controls">
