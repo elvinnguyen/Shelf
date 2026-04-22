@@ -285,6 +285,13 @@ def handle_500(e):
     return jsonify({"error": str(e) or "Internal server error"}), 500
 
 
+# ——— Health check ———
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
+
+
 # ——— Page routes ———
 
 @app.route("/")
